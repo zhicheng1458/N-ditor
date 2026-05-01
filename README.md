@@ -1,1 +1,1 @@
-Entities sprite obtained from inne by Eddy.
+Entities sprite obtained from [inne](https://github.com/edelkas/inne) by Eddy.
