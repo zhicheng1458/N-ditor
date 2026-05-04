@@ -5,6 +5,7 @@
 #include "Model.h"
 
 #include "Palette.h"
+#include "Entity.h"
 
 enum CursorType
 {
@@ -12,6 +13,13 @@ enum CursorType
 	ENTITY_CURSOR = 1,
 	ENTITY_PLACEMENT_CURSOR = 2,
 	REGION_SELECT_CURSOR = 3
+};
+
+enum NumEntityToPlace
+{
+	NO_ENTITY = 0,
+	SINGLE_ENTITY = 1,
+	PAIR_ENTITY = 2
 };
 
 class Cursor
@@ -31,8 +39,14 @@ public:
 
 	void setCursorType(CursorType t);
 
+	NumEntityToPlace placeEntity();
+	EntityData getFirstEntityData();
+	EntityData getSecondEntityData();
+	void setHintEntityType(entityType type);
+	void setHintEntityRotation(EntityRotation rotation);
+	void resetHintEntity(); //For when the cursor mode was changed mid placing entity pair
+
 private:
-	//Maybe consider taking over the hint entity here?
 
 	const Palette* palette;
 
@@ -43,6 +57,8 @@ private:
 	glm::vec2 cursorLocation = glm::vec2(0.0f);
 
 	ShaderProgram* cursorShader;
+	ShaderProgram* entityShader;
+	ShaderProgram* connectorShader;
 	Model * entityModeCursor;
 	Model * tileModeCursor;
 	Model * selectionRegion;
@@ -50,5 +66,20 @@ private:
 	int rotation = 0;
 	bool followMouse = false;
 
+	std::vector<EntityData> hintEntities = {EntityData(), EntityData()};
+	EntityData* currentHintEntity = &hintEntities[0];
+	EntityConnector hintConnector;
+	EntityData entityToPlace1; //Use to remember the data for EntityHandler to place the entity
+	EntityData entityToPlace2; //Use to remember the data for EntityHandler to place the entity
+	uint hintEntityDataBuffer;
+	uint hintEntityConnectorBuffer;
+
 	void init(); //Build the cursor
+
+	void swapHintPointer();
+
+	void setHintBuffer();
+	void clearHintBuffer();
+	void drawHintEntity(glm::mat4 viewProjMtx);
+	void drawHintEntityConnector(glm::mat4 viewProjMtx);
 };

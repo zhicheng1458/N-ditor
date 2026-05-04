@@ -171,13 +171,13 @@ void LevelEditor::drawSolidLayer()
 	if (drawFineGrid) { fineGrid->draw(modelMtx, viewpoint->getViewProjectMtx(), fineGridShader->getProgramID()); } //Solid
 	levelRegion->draw(levelRegionModelMtx, viewpoint->getViewProjectMtx(), levelRegionShader->getProgramID()); // Solid?
 	tiles.draw(viewpoint->getViewProjectMtx()); //Transparent
-	mouse.draw(viewpoint->getViewProjectMtx());
 	//std::cout << glGetError() << std::endl;
 	
 }
 
 void LevelEditor::drawTransparentLayer()
 {
+	mouse.draw(viewpoint->getViewProjectMtx());
 	entities.draw(viewpoint->getViewProjectMtx()); //Transparent
 	//std::cout << glGetError() << std::endl;
 }
@@ -210,7 +210,6 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			mouse.setCursorType(TILE_CURSOR);
 			mouse.clearSelectionRegionBuffer();
 			mouse.setFollowMouse(false);
-			entities.hideHintEntity();
 			entities.stopHighlight();
 			return;
 		}
@@ -232,9 +231,10 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					case GLFW_KEY_F: //Only difference between F and space key is that F key doesn't show the tray
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
 						mouse.setCursorType(ENTITY_PLACEMENT_CURSOR);
+						mouse.setHintEntityType(overlay.getSelectedEntityType());
+						mouse.setHintEntityRotation(currentEntityRotation);
+						mouse.update(mouseCoordinate.x, mouseCoordinate.y);
 						entities.stopHighlight();
-						entities.showHintEntity();
-						entities.setHintEntity(overlay.getSelectedEntityType(), (int)newEntityCoordinate.x, (int)newEntityCoordinate.y, currentEntityRotation);
 						break;
 					case GLFW_KEY_T:
 						entities.deleteClosestEntity(newEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS);
@@ -275,14 +275,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						overlay.showTray();
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
 						mouse.setCursorType(ENTITY_PLACEMENT_CURSOR);
+						mouse.setHintEntityType(overlay.getSelectedEntityType());
+						mouse.setHintEntityRotation(currentEntityRotation);
+						mouse.update(mouseCoordinate.x, mouseCoordinate.y);
 						entities.stopHighlight();
-						entities.showHintEntity();
-						entities.setHintEntity(overlay.getSelectedEntityType(), (int)newEntityCoordinate.x, (int)newEntityCoordinate.y, currentEntityRotation);
 						break;
 					case GLFW_KEY_LEFT_ALT:
 						currentEditingMode = TILE_EDITING_MODE;
 						mouse.setCursorType(TILE_CURSOR);
-						entities.hideHintEntity();
 						entities.stopHighlight();
 						break;
 					default:
@@ -295,7 +295,6 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				{
 					case GLFW_KEY_F:
 						//currentEditingMode = ENTITY_EDITING_MODE;
-						//entities.hideHintEntity();
 						//lastClosestEntity = findClosestEntity(newEntityCoordinate, 5);
 						//entities.resolveHighlight(lastClosestEntity, nullptr);
 						break;
@@ -340,10 +339,12 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					}
 					case GLFW_KEY_SPACE:
 						overlay.showTray();
-						entities.showHintEntity();
+						//entities.showHintEntity();
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
 						mouse.setCursorType(ENTITY_PLACEMENT_CURSOR);
-						entities.setHintEntity(overlay.getSelectedEntityType(), newEntityCoordinate.x, newEntityCoordinate.y, currentEntityRotation);
+						mouse.setHintEntityType(overlay.getSelectedEntityType());
+						mouse.setHintEntityRotation(currentEntityRotation);
+						mouse.update(mouseCoordinate.x, mouseCoordinate.y);
 						break;
 					default:
 						break;
@@ -355,7 +356,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					case GLFW_KEY_F:
 						currentEditingMode = ENTITY_EDITING_MODE;
 						mouse.setCursorType(ENTITY_CURSOR);
-						entities.hideHintEntity();
+						mouse.resetHintEntity();
 						entities.highlightClosestEntity(newEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS);
 						break;
 					case GLFW_KEY_SPACE:
@@ -365,39 +366,39 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					case GLFW_KEY_LEFT_ALT:
 						currentEditingMode = TILE_EDITING_MODE;
 						mouse.setCursorType(TILE_CURSOR);
-						entities.hideHintEntity();
+						mouse.resetHintEntity();
 						break;
 					case GLFW_KEY_D:
 						currentEntityRotation = ENTITY_DEGREE_0;
-						entities.setHintEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_E:
 						currentEntityRotation = ENTITY_DEGREE_45;
-						entities.setHintEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_W:
 						currentEntityRotation = ENTITY_DEGREE_90;
-						entities.setHintEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_Q:
 						currentEntityRotation = ENTITY_DEGREE_135;
-						entities.setHintEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_A:
 						currentEntityRotation = ENTITY_DEGREE_180;
-						entities.setHintEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_Z:
 						currentEntityRotation = ENTITY_DEGREE_225;
-						entities.setHintEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_S:
 						currentEntityRotation = ENTITY_DEGREE_270;
-						entities.setHintEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_C:
 						currentEntityRotation = ENTITY_DEGREE_315;
-						entities.setHintEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					default:
 						break;
@@ -486,11 +487,21 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 			mouseLeftButtonPressedX = mouseX;
 			mouseLeftButtonPressedY = mouseY;
 			mouseLeftButtonPressedStartTime = glfwGetTime();
+			NumEntityToPlace num;
 
 			switch (currentEditingMode)
 			{
 			case ENTITY_PLACEMENT_MODE:
-				entities.placeEntity();
+				//entities.placeEntity();
+				num = mouse.placeEntity();
+				if (num == SINGLE_ENTITY)
+				{
+					entities.addStaticEntity(mouse.getFirstEntityData());
+				}
+				else if (num == PAIR_ENTITY)
+				{
+					entities.addStaticEntity(mouse.getFirstEntityData(), mouse.getSecondEntityData());
+				}
 				break;
 			case TILE_EDITING_MODE:
 				currentEditingMode = REGION_EDITING_MODE;
@@ -581,7 +592,10 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 	if (overlay.wantControl((float)xpos, (float)ypos))
 	{
 		overlay.processMouseLocation((float)xpos, (float)ypos);
-		entities.setHintEntity(overlay.getSelectedEntityType(), newEntityCoordinate.x, newEntityCoordinate.y, currentEntityRotation);
+		mouse.resetHintEntity();
+		mouse.setHintEntityType(overlay.getSelectedEntityType());
+		mouse.setHintEntityRotation(currentEntityRotation);
+		mouse.update(newCoord.x, newCoord.y);
 		return;
 	}
 
@@ -593,7 +607,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 	switch (currentEditingMode)
 	{
 		case ENTITY_PLACEMENT_MODE:
-			entities.moveHint(newEntityCoordinate.x, newEntityCoordinate.y);
+			//entities.moveHint(newEntityCoordinate.x, newEntityCoordinate.y);
 			break;
 		case ENTITY_EDITING_MODE:
 		{

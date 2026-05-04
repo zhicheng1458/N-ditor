@@ -7,9 +7,6 @@ EntityHandler::EntityHandler(float tileSize, const Palette& p)
 	connectorShader = new ShaderProgram("./Resources/Shaders/EntityConnector.glsl", ShaderProgram::eGeometry);
 	this->tileSize = tileSize;
 
-	hintEntity1 = new EntityData();
-	hintEntity2 = new EntityData();
-
 	const glm::mat4 rotationMtxDeg45 = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	glUseProgram(entityShader->getProgramID());
 	glUniformMatrix4fv(glGetUniformLocation(entityShader->getProgramID(), "rotationMtx45Deg"), 1, false, (float*)&rotationMtxDeg45);
@@ -71,8 +68,6 @@ EntityHandler::~EntityHandler()
 {
 	delete entityShader;
 	delete connectorShader;
-	delete hintEntity1;
-	delete hintEntity2;
 
 	for (int i = 0; i < entityDatas.size(); i++)
 	{
@@ -143,124 +138,6 @@ void EntityHandler::stopHighlight()
 	lastHighlightedEntity = nullptr;
 }
 
-void EntityHandler::showHintEntity()
-{
-	drawHintEntity = true;
-}
-
-void EntityHandler::hideHintEntity()
-{
-	drawHintEntity = false;
-}
-
-//It is strongly recommended to utilize the move method to move the hint entity around
-//as it is applicated to area selection as well.
-void EntityHandler::setHintEntity(entityType type, int cursorXCoord, int cursorYCoord, EntityRotation rotation)
-{
-	clearVolatileBuffers();
-	hintEntity1->type = type;
-	hintEntity1->entityCoordx = cursorXCoord;
-	hintEntity1->entityCoordy = cursorYCoord;
-	hintEntity1->rotation = rotation;
-	volatileEntityDynamicDatas.push_back(hintEntity1);
-	setVolatileBuffers();
-}
-
-void EntityHandler::setHintEntityRotation(EntityRotation rotation)
-{
-	if (hintEntity1Placed)
-	{
-		hintEntity2->rotation = rotation;
-	}
-	else
-	{
-		hintEntity1->rotation = rotation;
-	}
-	setVolatileBuffers();
-}
-
-void EntityHandler::placeEntity()
-{
-	if (hintEntity1->type == NONE) { return; } //Prevent placing a ghost entity.
-
-	clearVolatileBuffers();
-	
-	if (hintEntity1->type != EXIT &&
-		hintEntity1->type != EXIT_SWITCH &&
-		hintEntity1->type != LOCKED_DOOR &&
-		hintEntity1->type != LOCKED_DOOR_SWITCH &&
-		hintEntity1->type != TRAP_DOOR &&
-		hintEntity1->type != TRAO_DOOR_SWITCH)
-	{
-		this->addStaticEntity(*hintEntity1);
-		volatileEntityDynamicDatas.push_back(hintEntity1);
-		setVolatileBuffers();
-		return;
-	}
-
-	if (hintEntity1Placed == false)
-	{
-		volatileEntityStaticData.push_back(hintEntity1);
-		hintEntity2->entityCoordx = hintEntity1->entityCoordx;
-		hintEntity2->entityCoordy = hintEntity1->entityCoordy;
-		hintEntity2->rotation = hintEntity1->rotation;
-		volatileEntityDynamicDatas.push_back(hintEntity2);
-		EntityConnector temp;
-		temp.e1 = hintEntity1;
-		temp.e2 = hintEntity2;
-		temp.highlight = 0;
-		volatileEntityConnections.push_back(temp);
-
-		switch (hintEntity1->type)
-		{
-		case EXIT:
-			hintEntity2->type = EXIT_SWITCH; break;
-		case EXIT_SWITCH:
-			hintEntity2->type = EXIT; break;
-		case LOCKED_DOOR:
-			hintEntity2->type = LOCKED_DOOR_SWITCH; break;
-		case LOCKED_DOOR_SWITCH:
-			hintEntity2->type = LOCKED_DOOR; break;
-		case TRAP_DOOR:
-			hintEntity2->type = TRAO_DOOR_SWITCH; break;
-		case TRAO_DOOR_SWITCH:
-			hintEntity2->type = TRAP_DOOR; break;
-		default:
-			break;
-		}
-
-		setVolatileBuffers();
-		hintEntity1Placed = true;
-	}
-	else
-	{
-		this->addStaticEntity(*hintEntity1, *hintEntity2);
-		hintEntity1->entityCoordx = hintEntity2->entityCoordx;
-		hintEntity1->entityCoordy = hintEntity2->entityCoordy;
-		hintEntity1->rotation = hintEntity2->rotation;
-		switch (hintEntity2->type)
-		{
-		case EXIT:
-			hintEntity1->type = EXIT_SWITCH; break;
-		case EXIT_SWITCH:
-			hintEntity1->type = EXIT; break;
-		case LOCKED_DOOR:
-			hintEntity1->type = LOCKED_DOOR_SWITCH; break;
-		case LOCKED_DOOR_SWITCH:
-			hintEntity1->type = LOCKED_DOOR; break;
-		case TRAP_DOOR:
-			hintEntity1->type = TRAO_DOOR_SWITCH; break;
-		case TRAO_DOOR_SWITCH:
-			hintEntity1->type = TRAP_DOOR; break;
-		default:
-			break;
-		}
-		volatileEntityDynamicDatas.push_back(hintEntity1);
-		setVolatileBuffers();
-		hintEntity1Placed = false;
-	}
-}
-
 void EntityHandler::moveHint(int cursorX, int cursorY)
 {
 	if (volatileEntityDynamicDatas.size() == 0) { return; }
@@ -286,16 +163,11 @@ void EntityHandler::update()
 
 void EntityHandler::draw(glm::mat4 viewProjMtx)
 {
-	drawEntities(viewProjMtx);
-	drawConnectors(viewProjMtx, entityConnections, entityConnectorBuffer);
-	if (drawHintEntity)
-	{
-		drawHint(viewProjMtx);
-		drawConnectors(viewProjMtx, volatileEntityConnections, volatileEntityConnectorBuffer);
-	}
+	drawEntities(viewProjMtx, entityDataBuffer, (GLsizei)entityDatas.size());
+	drawConnectors(viewProjMtx, entityConnectorBuffer, (GLsizei)entityConnections.size());
 }
 
-void EntityHandler::drawEntities(glm::mat4 viewProjMtx)
+void EntityHandler::drawEntities(glm::mat4 viewProjMtx, const uint entityBuffer, GLsizei entityBufferSize)
 {
 	if (allowModify)
 	{
@@ -314,7 +186,7 @@ void EntityHandler::drawEntities(glm::mat4 viewProjMtx)
 	glUniformMatrix4fv(glGetUniformLocation(entityShader->getProgramID(), "viewProjMtx"), 1, false, (float*)&viewProjMtx);
 
 	// Set up state
-	glBindBuffer(GL_ARRAY_BUFFER, entityDataBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, entityBuffer);
 
 	uint entityTypeLoc = 0;
 	glEnableVertexAttribArray(entityTypeLoc);
@@ -336,7 +208,7 @@ void EntityHandler::drawEntities(glm::mat4 viewProjMtx)
 	glEnableVertexAttribArray(entityHighlightLoc);
 	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(EntityData), (void*)(4 * sizeof(int) + 3 * sizeof(float)));
 
-	glDrawArrays(GL_POINTS, 0, (GLsizei)entityDatas.size()); //Use GL_POINTS because every "point" is 1 EntityData.
+	glDrawArrays(GL_POINTS, 0, entityBufferSize); //Use GL_POINTS because every "point" is 1 EntityData.
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
@@ -351,7 +223,7 @@ void EntityHandler::drawEntities(glm::mat4 viewProjMtx)
 	glUseProgram(0);
 }
 
-void EntityHandler::drawConnectors(glm::mat4 viewProjMtx, const std::vector<EntityConnector>& connectionDatas, const uint connectorBuffer)
+void EntityHandler::drawConnectors(glm::mat4 viewProjMtx, const uint connectorBuffer, GLsizei connectorBufferSize)
 {
 	if (allowModify)
 	{
@@ -380,57 +252,7 @@ void EntityHandler::drawConnectors(glm::mat4 viewProjMtx, const std::vector<Enti
 	glEnableVertexAttribArray(entityHighlightLoc);
 	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(ConnectorShaderInfo), (void*)(4 * sizeof(int)));
 
-	glDrawArrays(GL_POINTS, 0, (GLsizei)connectionDatas.size()); //Use GL_POINTS because every "point" is 1 EntityData.
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-	GLenum error = 0;
-	if ((error = glGetError()) != GL_NO_ERROR)
-	{
-		printf("%i \n", (int)error);
-	}
-
-	glEnable(GL_CULL_FACE);
-
-	glUseProgram(0);
-}
-
-void EntityHandler::drawHint(glm::mat4 viewProjMtx)
-{
-	// Set up shader
-	glDisable(GL_CULL_FACE);
-	glUseProgram(entityShader->getProgramID());
-
-	glActiveTexture(GL_TEXTURE0);
-	//glBindTexture(GL_TEXTURE_2D, entitySpriteSheet->getTextureID());
-	glBindTexture(GL_TEXTURE_2D, palette->getEntityTextureID());
-
-	glUniformMatrix4fv(glGetUniformLocation(entityShader->getProgramID(), "viewProjMtx"), 1, false, (float*)&viewProjMtx);
-
-	// Set up state
-	glBindBuffer(GL_ARRAY_BUFFER, volatileEntityDataBuffer);
-
-	uint entityTypeLoc = 0;
-	glEnableVertexAttribArray(entityTypeLoc);
-	glVertexAttribIPointer(entityTypeLoc, 1, GL_INT, sizeof(EntityData), (void*)(0 * sizeof(int)));
-
-	uint entityCoordLoc = 1;
-	glEnableVertexAttribArray(entityCoordLoc);
-	glVertexAttribIPointer(entityCoordLoc, 2, GL_INT, sizeof(EntityData), (void*)(1 * sizeof(int)));
-
-	uint entityRotationLoc = 2;
-	glEnableVertexAttribArray(entityRotationLoc);
-	glVertexAttribIPointer(entityRotationLoc, 1, GL_INT, sizeof(EntityData), (void*)(3 * sizeof(int)));
-
-	uint entityColorLoc = 3;
-	glEnableVertexAttribArray(entityColorLoc);
-	glVertexAttribPointer(entityColorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(EntityData), (void*)(4 * sizeof(int)));
-
-	uint entityHighlightLoc = 4;
-	glEnableVertexAttribArray(entityHighlightLoc);
-	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(EntityData), (void*)(4 * sizeof(int) + 3 * sizeof(float)));
-
-	glDrawArrays(GL_POINTS, 0, (GLsizei)volatileEntityStaticData.size() + volatileEntityDynamicDatas.size()); //Use GL_POINTS because every "point" is 1 EntityData.
+	glDrawArrays(GL_POINTS, 0, connectorBufferSize); //Use GL_POINTS because every "point" is 1 EntityData.
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 

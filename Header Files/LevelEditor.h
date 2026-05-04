@@ -110,7 +110,7 @@ private:
 	EntityHandler entities = EntityHandler(gridSpacing, palette);
 
 	//Overlay
-	EditorOverlay overlay = EditorOverlay(screenWidth, screenHeight, gridSpacing);
+	EditorOverlay overlay = EditorOverlay(screenWidth, screenHeight, gridSpacing); //TODO: let the overlay use palette too
 
 	//Cursor
 	Cursor mouse = Cursor(gridSpacing, palette);

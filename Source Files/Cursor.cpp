@@ -11,13 +11,33 @@ Cursor::Cursor(float tileSize, const Palette& p)
 	tileModeCursor = new Model();
 	selectionRegion = new Model();
 
+	glGenBuffers(1, &hintEntityDataBuffer);
+	glGenBuffers(1, &hintEntityConnectorBuffer);
+
+	entityShader = new ShaderProgram("./Resources/Shaders/Entity.glsl", ShaderProgram::eGeometry);
+	connectorShader = new ShaderProgram("./Resources/Shaders/EntityConnector.glsl", ShaderProgram::eGeometry);
+	const glm::mat4 rotationMtxDeg45 = glm::rotate(glm::mat4(1.0f), glm::radians(45.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+	glUseProgram(entityShader->getProgramID());
+	glUniformMatrix4fv(glGetUniformLocation(entityShader->getProgramID(), "rotationMtx45Deg"), 1, false, (float*)&rotationMtxDeg45);
+	glUniform1i(glGetUniformLocation(entityShader->getProgramID(), "entitySpriteSheet"), 0); //Made assumption that GLTEXTURE_0 is active for this texture;
+	glUniform1f(glGetUniformLocation(entityShader->getProgramID(), "tileSize"), tileSize); //For geometry shader
+	glUseProgram(0);
+	glUseProgram(connectorShader->getProgramID());
+	glUniform1f(glGetUniformLocation(connectorShader->getProgramID(), "tileSize"), tileSize);
+	glUseProgram(0);
+
 	init();
 }
 
 Cursor::~Cursor()
 {
 	glFinish();
+	glDeleteBuffers(1, &hintEntityDataBuffer);
+	glDeleteBuffers(1, &hintEntityConnectorBuffer);
+
 	delete cursorShader;
+	delete entityShader;
+	delete connectorShader;
 	delete entityModeCursor;
 	delete tileModeCursor;
 	delete selectionRegion;
@@ -58,6 +78,14 @@ void Cursor::init()
 void Cursor::update(float mouseModelSpaceXCoord, float mouseModelSpaceYCoord)
 {
 	cursorLocation = glm::vec2(mouseModelSpaceXCoord, mouseModelSpaceYCoord);
+
+	if (cursorType == ENTITY_PLACEMENT_CURSOR)
+	{
+		glm::ivec2 entityLocation = UtilityFunctions::clampToNearestPlaceableEntityCoord(cursorLocation, tileSize);
+		currentHintEntity->entityCoordx = entityLocation.x;
+		currentHintEntity->entityCoordy = entityLocation.y;
+		setHintBuffer();
+	}
 }
 
 void Cursor::draw(glm::mat4 viewProjMtx)
@@ -79,6 +107,13 @@ void Cursor::draw(glm::mat4 viewProjMtx)
 		modelCoord = UtilityFunctions::convertTileCoordToModelCoord(closestCoord, tileSize);
 		modelMtx = glm::translate(glm::mat4(1.0f), glm::vec3(modelCoord.x, modelCoord.y, 0.0f));
 		tileModeCursor->draw(modelMtx, viewProjMtx, cursorShader->getProgramID());
+		break;
+	case ENTITY_PLACEMENT_CURSOR:
+		drawHintEntity(viewProjMtx);
+		if (currentHintEntity == &hintEntities[1])
+		{
+			drawHintEntityConnector(viewProjMtx);
+		}
 		break;
 	case REGION_SELECT_CURSOR:
 		if (followMouse)
@@ -166,14 +201,14 @@ void Cursor::clearSelectionRegionBuffer()
 void Cursor::rotateSelectionRegionClockwise()
 {
 	rotation += 4;
-	rotation--;
+	rotation++;
 	rotation = rotation % 4;
 }
 
 void Cursor::rotateSelectionRegionCounterClockwise()
 {
 	rotation += 4;
-	rotation++;
+	rotation--;
 	rotation = rotation % 4;
 }
 
@@ -187,4 +222,227 @@ void Cursor::setCursorType(CursorType t)
 	cursorType = t;
 }
 
+NumEntityToPlace Cursor::placeEntity()
+{
+	if (currentHintEntity->type == NONE)
+	{
+		return NO_ENTITY; //Prevent placing a ghost entity.
+	}
 
+	if (currentHintEntity->type != EXIT &&
+		currentHintEntity->type != EXIT_SWITCH &&
+		currentHintEntity->type != LOCKED_DOOR &&
+		currentHintEntity->type != LOCKED_DOOR_SWITCH &&
+		currentHintEntity->type != TRAP_DOOR &&
+		currentHintEntity->type != TRAO_DOOR_SWITCH)
+	{
+		entityToPlace1 = hintEntities[0];
+		return SINGLE_ENTITY;
+	}
+
+	if (currentHintEntity == &hintEntities[0])
+	{
+
+		//Copy location and rotation of hint entity 1 to hint entity 2
+		hintEntities[1].entityCoordx = hintEntities[0].entityCoordx;
+		hintEntities[1].entityCoordy = hintEntities[0].entityCoordy;
+		hintEntities[1].rotation = hintEntities[0].rotation;
+
+		//Find the correct type pair for the other entity
+		switch (hintEntities[0].type)
+		{
+		case EXIT:
+			hintEntities[1].type = EXIT_SWITCH; break;
+		case EXIT_SWITCH:
+			hintEntities[1].type = EXIT; break;
+		case LOCKED_DOOR:
+			hintEntities[1].type = LOCKED_DOOR_SWITCH; break;
+		case LOCKED_DOOR_SWITCH:
+			hintEntities[1].type = LOCKED_DOOR; break;
+		case TRAP_DOOR:
+			hintEntities[1].type = TRAO_DOOR_SWITCH; break;
+		case TRAO_DOOR_SWITCH:
+			hintEntities[1].type = TRAP_DOOR; break;
+		default:
+			break;
+		}
+
+		swapHintPointer();
+		setHintBuffer();
+		return NO_ENTITY; //Need more information as this is a pair entity
+	}
+	else
+	{
+		entityToPlace1 = hintEntities[0];
+		entityToPlace2 = hintEntities[1];
+
+		//Copy location and rotation of hint entity 2 to hint entity 1
+		hintEntities[0].entityCoordx = hintEntities[1].entityCoordx;
+		hintEntities[0].entityCoordy = hintEntities[1].entityCoordy;
+		hintEntities[0].rotation = hintEntities[1].rotation;
+
+		hintEntities[1].type = NONE; //Additionally, since the second hint entity is always being drawn, set the type to none to prevent drawing.
+
+		//Find the correct type pair for the other entity
+		switch (hintEntities[1].type)
+		{
+		case EXIT:
+			hintEntities[0].type = EXIT_SWITCH; break;
+		case EXIT_SWITCH:
+			hintEntities[0].type = EXIT; break;
+		case LOCKED_DOOR:
+			hintEntities[0].type = LOCKED_DOOR_SWITCH; break;
+		case LOCKED_DOOR_SWITCH:
+			hintEntities[0].type = LOCKED_DOOR; break;
+		case TRAP_DOOR:
+			hintEntities[0].type = TRAO_DOOR_SWITCH; break;
+		case TRAO_DOOR_SWITCH:
+			hintEntities[0].type = TRAP_DOOR; break;
+		default:
+			break;
+		}
+
+		swapHintPointer();
+		setHintBuffer();
+		return PAIR_ENTITY;
+	}
+}
+
+EntityData Cursor::getFirstEntityData()
+{
+	return entityToPlace1;
+}
+
+EntityData Cursor::getSecondEntityData()
+{
+	return entityToPlace2;
+}
+
+void Cursor::setHintEntityType(entityType type)
+{
+	currentHintEntity->type = type;
+	setHintBuffer();
+}
+
+void Cursor::setHintEntityRotation(EntityRotation rotation)
+{
+	currentHintEntity->rotation = rotation;
+	setHintBuffer();
+}
+
+void Cursor::resetHintEntity()
+{
+	hintEntities[0].type = NONE;
+	hintEntities[1].type = NONE;
+	currentHintEntity = &hintEntities[0];
+}
+
+void Cursor::swapHintPointer()
+{
+	if (currentHintEntity == &hintEntities[0])
+	{
+		currentHintEntity = &hintEntities[1];
+	}
+	else
+	{
+		currentHintEntity = &hintEntities[0];
+	}
+}
+
+void Cursor::setHintBuffer()
+{
+	glBindBuffer(GL_ARRAY_BUFFER, hintEntityDataBuffer);
+	glBufferData(GL_ARRAY_BUFFER, hintEntities.size() * sizeof(EntityData), &hintEntities[0], GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	ConnectorShaderInfo temp;
+	temp.entity1Coord = glm::ivec2(hintEntities[0].entityCoordx, hintEntities[0].entityCoordy);
+	temp.entity2Coord = glm::ivec2(hintEntities[1].entityCoordx, hintEntities[1].entityCoordy);
+
+	glBindBuffer(GL_ARRAY_BUFFER, hintEntityConnectorBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(ConnectorShaderInfo), &temp, GL_STATIC_DRAW);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+}
+
+void Cursor::clearHintBuffer()
+{
+	//Hint entities doesn't actually get cleared and instead use a flag to determine if it is drawn or not
+}
+
+void Cursor::drawHintEntity(glm::mat4 viewProjMtx)
+{
+
+	// Set up shader
+	glDisable(GL_CULL_FACE);
+	glUseProgram(entityShader->getProgramID());
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, palette->getEntityTextureID());
+
+	glUniformMatrix4fv(glGetUniformLocation(entityShader->getProgramID(), "viewProjMtx"), 1, false, (float*)&viewProjMtx);
+
+	// Set up state
+	glBindBuffer(GL_ARRAY_BUFFER, hintEntityDataBuffer);
+
+	uint entityTypeLoc = 0;
+	glEnableVertexAttribArray(entityTypeLoc);
+	glVertexAttribIPointer(entityTypeLoc, 1, GL_INT, sizeof(EntityData), (void*)(0 * sizeof(int)));
+
+	uint entityCoordLoc = 1;
+	glEnableVertexAttribArray(entityCoordLoc);
+	glVertexAttribIPointer(entityCoordLoc, 2, GL_INT, sizeof(EntityData), (void*)(1 * sizeof(int)));
+
+	uint entityRotationLoc = 2;
+	glEnableVertexAttribArray(entityRotationLoc);
+	glVertexAttribIPointer(entityRotationLoc, 1, GL_INT, sizeof(EntityData), (void*)(3 * sizeof(int)));
+
+	uint entityColorLoc = 3;
+	glEnableVertexAttribArray(entityColorLoc);
+	glVertexAttribPointer(entityColorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(EntityData), (void*)(4 * sizeof(int)));
+
+	uint entityHighlightLoc = 4;
+	glEnableVertexAttribArray(entityHighlightLoc);
+	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(EntityData), (void*)(4 * sizeof(int) + 3 * sizeof(float)));
+
+	glDrawArrays(GL_POINTS, 0, hintEntities.size()); //Use GL_POINTS because every "point" is 1 EntityData.
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glEnable(GL_CULL_FACE);
+
+	glUseProgram(0);
+}
+
+void Cursor::drawHintEntityConnector(glm::mat4 viewProjMtx)
+{
+
+	// Set up shader
+	glDisable(GL_CULL_FACE);
+	glUseProgram(connectorShader->getProgramID());
+
+	glUniformMatrix4fv(glGetUniformLocation(connectorShader->getProgramID(), "viewProjMtx"), 1, false, (float*)&viewProjMtx);
+
+	// Set up state
+	glBindBuffer(GL_ARRAY_BUFFER, hintEntityConnectorBuffer);
+
+	uint entity1CoordLoc = 0;
+	glEnableVertexAttribArray(entity1CoordLoc);
+	glVertexAttribIPointer(entity1CoordLoc, 2, GL_INT, sizeof(ConnectorShaderInfo), (void*)(0 * sizeof(int)));
+
+	uint entity2CoordLoc = 1;
+	glEnableVertexAttribArray(entity2CoordLoc);
+	glVertexAttribIPointer(entity2CoordLoc, 2, GL_INT, sizeof(ConnectorShaderInfo), (void*)(2 * sizeof(int)));
+
+	uint entityHighlightLoc = 2;
+	glEnableVertexAttribArray(entityHighlightLoc);
+	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(ConnectorShaderInfo), (void*)(4 * sizeof(int)));
+
+	glDrawArrays(GL_POINTS, 0, 1); //There is only 1 connector
+
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+	glEnable(GL_CULL_FACE);
+
+	glUseProgram(0);
+}
