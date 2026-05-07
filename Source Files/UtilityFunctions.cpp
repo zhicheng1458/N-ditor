@@ -32,6 +32,16 @@ glm::ivec2 UtilityFunctions::clampToNearestTileCoord(glm::vec2 clickedCoordinate
 	return glm::ivec2((int)result.x, (int)result.y);
 }
 
+/* Return the entity location of the closest tile's center,
+ * this makes rotation much easier to be dealt with 
+ * as rotation would not change the pivot point calculation
+ */
+glm::ivec2 UtilityFunctions::clampToNearestPivotEntityCoord(glm::vec2 clickedCoordinateInModelSpace, float unitSpacing)
+{
+	glm::vec2 result = glm::floor(clickedCoordinateInModelSpace / unitSpacing) * 4.0f + glm::vec2(6.0f);
+	return glm::ivec2((int)result.x, (int)result.y); //Entities can be placed 1 tile higher/lefter
+}
+
 glm::vec2 UtilityFunctions::convertEntityCoordToModelCoord(glm::ivec2 entityCoord, float unitSpacing)
 {
 	float x = entityCoord.x * (unitSpacing * 0.25f) - unitSpacing;

@@ -6,6 +6,7 @@
 #include "AABBTree.h"
 
 #include "Entity.h"
+#include "UtilityFunctions.h"
 
 /*
 struct EntityDataAdaptor
@@ -49,10 +50,27 @@ public:
 	void setHighlightedEntityRotation(EntityRotation rotation);
 	void stopHighlight();
 
-	void moveHint(int cursorX, int cursorY); //cursorX and cursorY are supplied as entity coordinate at the mouse location.
-
 	void addStaticEntity(EntityData data);
 	void addStaticEntity(EntityData data, EntityData pair);
+
+	void setHintToFollowMouse(bool toFollow);
+	void moveHint(glm::vec2 cursorInModelSpace); //cursorX and cursorY are supplied as entity coordinate at the mouse location.
+
+	//corner1 should be when mouse is held, corner2 should be when mouse is released
+	//pivot will be based on corner 2
+	//TODO: QOL: All entities within the region will be staged; pair entities outside
+	//of the region will be stages as static entities.
+	void setSelectedRegion(glm::vec2 corner1, glm::vec2 corner2, bool isInclusive);
+	void stageSelected();
+	void unstageSelected();
+	void pasteSelected();
+	void deleteSelected();
+	void copySelected();
+	void cutSelected();
+	void flipSelectedHorizontally();
+	void flipSelectedVertically();
+	void rotateSelectedClockwise();
+	void rotateSelectedCounterClockwise();
 
 	void update();
 	void draw(glm::mat4 viewProjMtx);
@@ -75,6 +93,10 @@ private:
 
 	EntityData* lastHighlightedEntity = nullptr; //For tracking highlight
 
+	bool followMouse = false;
+	glm::ivec2 selectRegionMinBoundary = glm::ivec2(0);
+	glm::ivec2 selectRegionMaxBoundary = glm::ivec2(0);
+	glm::ivec2 pivotEntityLocation = glm::ivec2(0); //Entity location of the pivot
 	std::vector<EntityData*> volatileEntityStaticData; //For those selected outside of the region
 	std::vector<EntityData*> volatileEntityDynamicDatas; //For those selected within the region
 	std::vector<EntityConnector> volatileEntityConnections;
@@ -96,4 +118,8 @@ private:
 	void setVolatileBuffers();
 	void clearVolatileBuffers();
 
+	void flipEntityHorizontally(EntityData* entity, int xMinBoundary, int xMaxBoundary);
+	void flipEntityVertically(EntityData* entity, int yMinBoundary, int yMaxBoundary);
+	void rotateEntityClockwise(EntityData* entity, const glm::ivec2 & pivot);
+	void rotateEntityCounterClockwise(EntityData* entity, const glm::ivec2 & pivot);
 };

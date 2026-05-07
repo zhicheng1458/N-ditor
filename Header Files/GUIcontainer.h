@@ -34,7 +34,7 @@ public:
 
 private:
 
-	const bool DEBUG = true;
+	const bool DEBUG = false;
 	SystemMessageGUI debugWindow;
 	const ImVec4 SUCCESS_COLOR = ImVec4(0.1f, 0.9f, 0.1f, 1.0f); //Green
 	const ImVec4 ERROR_COLOR = ImVec4(0.9f, 0.1f, 0.1f, 1.0f);   //Red

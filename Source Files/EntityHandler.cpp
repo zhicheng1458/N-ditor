@@ -1,5 +1,6 @@
 #include "EntityHandler.h"
 #include <iostream>
+#include "TileHandler.h"
 
 EntityHandler::EntityHandler(float tileSize, const Palette& p)
 {
@@ -66,6 +67,7 @@ EntityHandler::EntityHandler(float tileSize, const Palette& p)
 
 EntityHandler::~EntityHandler()
 {
+	glFinish();
 	delete entityShader;
 	delete connectorShader;
 
@@ -74,6 +76,8 @@ EntityHandler::~EntityHandler()
 		delete entityDatas[i];
 		entityDatas[i] = nullptr;
 	}
+	clearVolatileBuffers();
+
 	glDeleteBuffers(1, &entityDataBuffer);
 	glDeleteBuffers(1, &entityConnectorBuffer);
 	glDeleteBuffers(1, &volatileEntityDataBuffer);
@@ -129,6 +133,8 @@ void EntityHandler::setHighlightedEntityRotation(EntityRotation rotation)
 	if (lastHighlightedEntity == nullptr) { return; };
 	if (lastHighlightedEntity->rotation == rotation) { return; }
 	lastHighlightedEntity->rotation = rotation;
+	//TODO: Perform sanity check
+	Entity::sanitizeImpossibleValue(lastHighlightedEntity);
 	update();
 }
 
@@ -138,22 +144,344 @@ void EntityHandler::stopHighlight()
 	lastHighlightedEntity = nullptr;
 }
 
-void EntityHandler::moveHint(int cursorX, int cursorY)
+bool EntityHandler::isSame(EntityData data1, EntityData data2)
 {
-	if (volatileEntityDynamicDatas.size() == 0) { return; }
+	return false;
+}
 
-	int dx = cursorX - volatileEntityDynamicDatas[0]->entityCoordx;
-	int dy = cursorY - volatileEntityDynamicDatas[0]->entityCoordy;
-	volatileEntityDynamicDatas[0]->entityCoordx = cursorX;
-	volatileEntityDynamicDatas[0]->entityCoordy = cursorY;
+bool EntityHandler::isLessThan(EntityData data1, EntityData data2)
+{
+	return false;
+}
 
-	for (int i = 1; i < volatileEntityDynamicDatas.size(); i++)
+void EntityHandler::addStaticEntity(EntityData data)
+{
+	//TODO: Perform sanity check
+
+	clearStaticBuffers();
+	EntityData* entity = new EntityData(data);
+	entity->highlight = 0;
+	Entity::sanitizeImpossibleValue(entity);
+	entityDatas.push_back(entity);
+	setStaticBuffers();
+}
+
+void EntityHandler::addStaticEntity(EntityData data, EntityData pair)
+{
+	//TODO: Perform sanity check
+
+	clearStaticBuffers();
+	EntityData* entity = new EntityData(data);
+	EntityData* pairEntity = new EntityData(pair);
+	entity->highlight = 0;
+	pairEntity->highlight = 0;
+	entity->pair = pairEntity;
+	pairEntity->pair = entity;
+	Entity::sanitizeImpossibleValue(entity);
+	Entity::sanitizeImpossibleValue(pairEntity);
+	entityDatas.push_back(entity);
+	entityDatas.push_back(pairEntity);
+	EntityConnector connector;
+	connector.e1 = entity;
+	connector.e2 = pairEntity;
+	connector.highlight = 0;
+	entityConnections.push_back(connector);
+	setStaticBuffers();
+}
+
+void EntityHandler::setHintToFollowMouse(bool toFollow)
+{
+	followMouse = toFollow;
+}
+
+void EntityHandler::moveHint(glm::vec2 cursorInModelSpace) //Basically equivalent to update();
+{
+	if (!followMouse) { return; }
+
+	//if (volatileEntityDynamicDatas.size() == 0) { return; }
+
+	//TODO: alternative option: use the normal entity placing coord to allow finer movement
+	glm::ivec2 newPivotLocation = UtilityFunctions::clampToNearestPivotEntityCoord(cursorInModelSpace, tileSize);
+	glm::ivec2 diff = newPivotLocation - pivotEntityLocation;
+	if (diff.x == 0 && diff.y == 0) { return; } //No change
+
+	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
 	{
-		volatileEntityDynamicDatas[i]->entityCoordx += dx;
-		volatileEntityDynamicDatas[i]->entityCoordy += dy;
+		volatileEntityDynamicDatas[i]->entityCoordx += diff.x;
+		volatileEntityDynamicDatas[i]->entityCoordy += diff.y;
 	}
+
+	selectRegionMinBoundary = selectRegionMinBoundary + diff;
+	selectRegionMaxBoundary = selectRegionMaxBoundary + diff;
+
+	pivotEntityLocation = newPivotLocation;
 	setVolatileBuffers(); //TODO: use buffer sub data to speed this part up
 }
+
+void EntityHandler::setSelectedRegion(glm::vec2 corner1, glm::vec2 corner2, bool isInclusive)
+{
+	glm::ivec2 corner1TileCoord = UtilityFunctions::clampToNearestTileCoord(corner1, tileSize);
+	glm::ivec2 corner2TileCoord = UtilityFunctions::clampToNearestTileCoord(corner2, tileSize);
+	int minX = std::min(corner1TileCoord.x, corner2TileCoord.x) * 4 + 4;
+	int maxX = std::max(corner1TileCoord.x, corner2TileCoord.x) * 4 + 8;
+	int minY = std::min(corner1TileCoord.y, corner2TileCoord.y) * 4 + 4;
+	int maxY = std::max(corner1TileCoord.y, corner2TileCoord.y) * 4 + 8;
+
+	if (!isInclusive)
+	{
+		minX++;
+		maxX--;
+		minY++;
+		maxY--;
+	}
+
+	selectRegionMinBoundary = glm::ivec2(minX, minY);
+	selectRegionMaxBoundary = glm::ivec2(maxX, maxY);
+	
+	pivotEntityLocation = UtilityFunctions::clampToNearestPivotEntityCoord(corner2, tileSize);
+}
+
+void EntityHandler::stageSelected()
+{
+	if (volatileEntityStaticData.size() > 0 || volatileEntityDynamicDatas.size() > 0)
+	{
+		unstageSelected();
+	}
+
+	int minX = selectRegionMinBoundary.x;
+	int minY = selectRegionMinBoundary.y;
+	int maxX = selectRegionMaxBoundary.x;
+	int maxY = selectRegionMaxBoundary.y;
+
+	for (int i = 0; i < entityConnections.size(); i++)
+	{
+		if (!(entityConnections[i].e1->entityCoordx < minX || entityConnections[i].e1->entityCoordx > maxX ||
+			  entityConnections[i].e1->entityCoordy < minY || entityConnections[i].e1->entityCoordy > maxY) &&
+			!(entityConnections[i].e2->entityCoordx < minX || entityConnections[i].e2->entityCoordx > maxX ||
+			  entityConnections[i].e2->entityCoordy < minY || entityConnections[i].e2->entityCoordy > maxY))
+		{
+			/* TODO: This is essentially just add entity but on a different vector */
+			EntityData* e1 = new EntityData(*(entityConnections[i].e1));
+			EntityData* e2 = new EntityData(*(entityConnections[i].e2));
+			e1->highlight = 1; //Staged entities are highlighted
+			e2->highlight = 1;
+			e1->pair = e2;
+			e2->pair = e1;
+			Entity::sanitizeImpossibleValue(e1);
+			Entity::sanitizeImpossibleValue(e2);
+			volatileEntityDynamicDatas.push_back(e1);
+			volatileEntityDynamicDatas.push_back(e2);
+			EntityConnector connector;
+			connector.e1 = e1;
+			connector.e2 = e2;
+			volatileEntityConnections.push_back(connector);
+		}
+	}
+
+	for (int i = 0; i < entityDatas.size(); i++)
+	{
+		if (entityDatas[i]->pair == nullptr)
+		{
+			if (!(entityDatas[i]->entityCoordx < minX || entityDatas[i]->entityCoordx > maxX ||
+				  entityDatas[i]->entityCoordy < minY || entityDatas[i]->entityCoordy > maxY))
+			{
+				/* TODO: Same here, same as adding a new entity but on the volatile vector */
+				EntityData * e = new EntityData(*entityDatas[i]);
+				e->highlight = 1;
+				Entity::sanitizeImpossibleValue(e);
+				volatileEntityDynamicDatas.push_back(e);
+			}
+		}
+	}
+
+	setVolatileBuffers();
+}
+
+void EntityHandler::unstageSelected()
+{
+	clearVolatileBuffers();
+}
+
+void EntityHandler::pasteSelected()
+{
+	//Add all the pair entity utilize the connector data first
+	for (int i = 0; i < volatileEntityConnections.size(); i++)
+	{
+		addStaticEntity(*volatileEntityConnections[i].e1, *volatileEntityConnections[i].e2);
+	}
+
+	//If an entity has a pair, that means it has been added already.
+	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
+	{
+		if (volatileEntityDynamicDatas[i]->pair == nullptr)
+		{
+			addStaticEntity(*volatileEntityDynamicDatas[i]);
+		}
+	}
+
+	for (int i = 0; i < volatileEntityStaticData.size(); i++)
+	{
+		if (volatileEntityStaticData[i]->pair == nullptr)
+		{
+			addStaticEntity(*volatileEntityStaticData[i]);
+		}
+	}
+}
+
+void EntityHandler::deleteSelected()
+{
+	int minX = selectRegionMinBoundary.x;
+	int maxX = selectRegionMaxBoundary.x;
+	int minY = selectRegionMinBoundary.y;
+	int maxY = selectRegionMaxBoundary.y;
+
+	std::vector<EntityConnector>::iterator connectorItr = entityConnections.begin();
+	while(connectorItr != entityConnections.end())
+	{
+		if (!(connectorItr->e1->entityCoordx < minX || connectorItr->e1->entityCoordx > maxX ||
+			  connectorItr->e1->entityCoordy < minY || connectorItr->e1->entityCoordy > maxY) &&
+			!(connectorItr->e2->entityCoordx < minX || connectorItr->e2->entityCoordx > maxX ||
+			  connectorItr->e2->entityCoordy < minY || connectorItr->e2->entityCoordy > maxY))
+		{
+			connectorItr = entityConnections.erase(connectorItr);
+		}
+		else
+		{
+			connectorItr++;
+		}
+	}
+
+	std::vector<EntityData*> toDelete;
+	std::vector<EntityData*>::iterator entityItr = entityDatas.begin();
+
+	while (entityItr != entityDatas.end())
+	{
+		if ((*entityItr)->pair == nullptr)
+		{
+			if (!((*entityItr)->entityCoordx < minX || (*entityItr)->entityCoordx > maxX ||
+				  (*entityItr)->entityCoordy < minY || (*entityItr)->entityCoordy > maxY))
+			{
+				toDelete.push_back(*entityItr);
+				entityItr = entityDatas.erase(entityItr);
+			}
+			else
+			{
+				entityItr++;
+			}
+		}
+		else
+		{
+			if (!((*entityItr)->entityCoordx < minX || (*entityItr)->entityCoordx > maxX ||
+				  (*entityItr)->entityCoordy < minY || (*entityItr)->entityCoordy > maxY) &&
+				!((*entityItr)->pair->entityCoordx < minX || (*entityItr)->pair->entityCoordx > maxX ||
+				  (*entityItr)->pair->entityCoordy < minY || (*entityItr)->pair->entityCoordy > maxY))
+			{
+				toDelete.push_back(*entityItr);
+				entityItr = entityDatas.erase(entityItr);
+			}
+			else
+			{
+				entityItr++;
+			}
+		}
+	}
+
+	for (int i = 0; i < toDelete.size(); i++)
+	{
+		delete toDelete[i];
+	}
+
+	setStaticBuffers();
+}
+
+void EntityHandler::copySelected()
+{
+	stageSelected();
+}
+
+void EntityHandler::cutSelected()
+{
+	stageSelected();
+	deleteSelected();
+}
+
+void EntityHandler::flipSelectedHorizontally()
+{
+	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
+	{
+		flipEntityHorizontally(volatileEntityDynamicDatas[i], selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+	}
+	setVolatileBuffers();
+}
+
+void EntityHandler::flipSelectedVertically()
+{
+	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
+	{
+		flipEntityVertically(volatileEntityDynamicDatas[i], selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+	}
+	setVolatileBuffers();
+}
+
+void EntityHandler::rotateSelectedClockwise()
+{
+	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
+	{
+		rotateEntityClockwise(volatileEntityDynamicDatas[i], pivotEntityLocation);
+	}
+
+	//The two corner of the selected region also need to be rotated
+	int dx = selectRegionMinBoundary.x - pivotEntityLocation.x;
+	int dy = selectRegionMinBoundary.y - pivotEntityLocation.y;
+	selectRegionMinBoundary.x = pivotEntityLocation.x + dy;
+	selectRegionMinBoundary.y = pivotEntityLocation.y - dx;
+
+	dx = selectRegionMaxBoundary.x - pivotEntityLocation.x;
+	dy = selectRegionMaxBoundary.y - pivotEntityLocation.y;
+	selectRegionMaxBoundary.x = pivotEntityLocation.x + dy;
+	selectRegionMaxBoundary.y = pivotEntityLocation.y - dx;
+
+	int minX = std::min(selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+	int maxX = std::max(selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+	int minY = std::min(selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+	int maxY = std::max(selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+
+	selectRegionMinBoundary = glm::ivec2(minX, minY);
+	selectRegionMaxBoundary = glm::ivec2(maxX, maxY);
+
+	setVolatileBuffers();
+}
+
+void EntityHandler::rotateSelectedCounterClockwise()
+{
+	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
+	{
+		rotateEntityCounterClockwise(volatileEntityDynamicDatas[i], pivotEntityLocation);
+	}
+
+	//The two corner of the selected region also need to be rotated
+	int dx = selectRegionMinBoundary.x - pivotEntityLocation.x;
+	int dy = selectRegionMinBoundary.y - pivotEntityLocation.y;
+	selectRegionMinBoundary.x = pivotEntityLocation.x - dy;
+	selectRegionMinBoundary.y = pivotEntityLocation.y + dx;
+
+	dx = selectRegionMaxBoundary.x - pivotEntityLocation.x;
+	dy = selectRegionMaxBoundary.y - pivotEntityLocation.y;
+	selectRegionMaxBoundary.x = pivotEntityLocation.x - dy;
+	selectRegionMaxBoundary.y = pivotEntityLocation.y + dx;
+
+	int minX = std::min(selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+	int maxX = std::max(selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+	int minY = std::min(selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+	int maxY = std::max(selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+
+	selectRegionMinBoundary = glm::ivec2(minX, minY);
+	selectRegionMaxBoundary = glm::ivec2(maxX, maxY);
+
+	setVolatileBuffers();
+}
+
+///////////////////////////////////////////////////////////////////////
 
 void EntityHandler::update()
 {
@@ -165,6 +493,8 @@ void EntityHandler::draw(glm::mat4 viewProjMtx)
 {
 	drawEntities(viewProjMtx, entityDataBuffer, (GLsizei)entityDatas.size());
 	drawConnectors(viewProjMtx, entityConnectorBuffer, (GLsizei)entityConnections.size());
+	drawEntities(viewProjMtx, volatileEntityDataBuffer, (GLsizei)(volatileEntityStaticData.size() + volatileEntityDynamicDatas.size()));
+	drawConnectors(viewProjMtx, volatileEntityConnectorBuffer, (GLsizei)volatileEntityConnections.size());
 }
 
 void EntityHandler::drawEntities(glm::mat4 viewProjMtx, const uint entityBuffer, GLsizei entityBufferSize)
@@ -267,40 +597,7 @@ void EntityHandler::drawConnectors(glm::mat4 viewProjMtx, const uint connectorBu
 	glUseProgram(0);
 }
 
-bool EntityHandler::isSame(EntityData data1, EntityData data2)
-{
-	return false;
-}
-
-bool EntityHandler::isLessThan(EntityData data1, EntityData data2)
-{
-	return false;
-}
-
-void EntityHandler::addStaticEntity(EntityData data)
-{
-	clearStaticBuffers();
-	EntityData* entity = new EntityData(data);
-	entityDatas.push_back(entity);
-	setStaticBuffers();
-}
-
-void EntityHandler::addStaticEntity(EntityData data, EntityData pair)
-{
-	clearStaticBuffers();
-	EntityData* entity = new EntityData(data);
-	EntityData* pairEntity = new EntityData(pair);
-	entity->pair = pairEntity;
-	pairEntity->pair = entity;
-	entityDatas.push_back(entity);
-	entityDatas.push_back(pairEntity);
-	EntityConnector connector;
-	connector.e1 = entity;
-	connector.e2 = pairEntity;
-	connector.highlight = 0;
-	entityConnections.push_back(connector);
-	setStaticBuffers();
-}
+///////////////////////////////////////////////////////////////////////
 
 void EntityHandler::deleteEntity(EntityData* data)
 {
@@ -509,7 +806,104 @@ void EntityHandler::clearVolatileBuffers()
 {
 	//Unlike static buffer, calling clear means actually clearing all drawing data.
 	glFinish();
+
+	for (int i = 0; i < volatileEntityStaticData.size(); i++)
+	{
+		delete volatileEntityStaticData[i];
+	}
+
+	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
+	{
+		delete volatileEntityDynamicDatas[i];
+	}
+
 	volatileEntityStaticData.clear();
 	volatileEntityDynamicDatas.clear();
 	volatileEntityConnections.clear();
+}
+
+void EntityHandler::flipEntityHorizontally(EntityData* entity, int xMinBoundary, int xMaxBoundary)
+{
+	entity->entityCoordx = xMaxBoundary - (entity->entityCoordx - xMinBoundary);
+
+	switch (entity->type)
+	{
+		//8-rotation style type: 0 <-> 4, 1 <-> 3, 5 <-> 7
+		case LOCKED_DOOR: case TRAP_DOOR: case BOUNCE_PAD: case ONE_WAY: case LASER_TURRET: case BOOST_PAD:
+		{
+			int baseRotation = entity->rotation / 4;
+			int remainder = entity->rotation % 4;
+			entity->rotation = (baseRotation * 4 + 4 - remainder) % 8;
+			break;
+		}
+		//4-rotation style type: 0 <-> 4
+		case CHAINGUN: case LASER_DRONE: case REGULAR_DRONE: case CHASE_DRONE: case MICRO_DRONE: case THWUMP:
+		{
+			int baseRotation = entity->rotation / 4;
+			int remainder = entity->rotation % 4;
+			entity->rotation = (baseRotation * 4 + 4 - remainder) % 8;
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	//TODO: Perform sanity check
+	Entity::sanitizeImpossibleValue(entity);
+}
+
+void EntityHandler::flipEntityVertically(EntityData* entity, int yMinBoundary, int yMaxBoundary)
+{
+	entity->entityCoordy = yMaxBoundary - (entity->entityCoordy - yMinBoundary);
+
+	switch (entity->type)
+	{
+		//8-rotation style type: 1 <-> 7, 2 <-> 6, 3 <-> 5
+		case LOCKED_DOOR: case TRAP_DOOR: case BOUNCE_PAD: case ONE_WAY: case LASER_TURRET: case BOOST_PAD:
+		{
+			entity->rotation = (8 - entity->rotation) % 8;
+			break;
+		}
+		//4-rotation style type: 2 <-> 6
+		case CHAINGUN: case LASER_DRONE: case REGULAR_DRONE: case CHASE_DRONE: case MICRO_DRONE: case THWUMP:
+		{
+			entity->rotation = (8 - entity->rotation) % 8;
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+
+	//TODO: Perform sanity check
+	Entity::sanitizeImpossibleValue(entity);
+}
+
+void EntityHandler::rotateEntityClockwise(EntityData* entity, const glm::ivec2 & pivot)
+{
+	int dx = entity->entityCoordx - pivot.x;
+	int dy = entity->entityCoordy - pivot.y;
+
+	entity->entityCoordx = pivot.x + dy;
+	entity->entityCoordy = pivot.y - dx;
+	entity->rotation = (entity->rotation + 8 + 2) % 8;
+
+	//TODO: Perform sanity check
+	Entity::sanitizeImpossibleValue(entity);
+}
+
+void EntityHandler::rotateEntityCounterClockwise(EntityData* entity, const glm::ivec2 & pivot)
+{
+	int dx = entity->entityCoordx - pivot.x;
+	int dy = entity->entityCoordy - pivot.y;
+
+	entity->entityCoordx = pivot.x - dy;
+	entity->entityCoordy = pivot.y + dx;
+	entity->rotation = (entity->rotation + 8 - 2) % 8;
+
+	//TODO: Perform sanity check
+	Entity::sanitizeImpossibleValue(entity);
 }

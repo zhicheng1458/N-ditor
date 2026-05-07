@@ -71,6 +71,7 @@ private:
 	EntityConnector hintConnector;
 	EntityData entityToPlace1; //Use to remember the data for EntityHandler to place the entity
 	EntityData entityToPlace2; //Use to remember the data for EntityHandler to place the entity
+	EntityRotation expectedRotation = ENTITY_DEGREE_0;
 	uint hintEntityDataBuffer;
 	uint hintEntityConnectorBuffer;
 

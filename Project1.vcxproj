@@ -166,6 +166,7 @@
     <ClCompile Include="Source Files\Camera.cpp" />
     <ClCompile Include="Source Files\Cursor.cpp" />
     <ClCompile Include="Source Files\EditorOverlay.cpp" />
+    <ClCompile Include="Source Files\Entity.cpp" />
     <ClCompile Include="Source Files\EntityHandler.cpp" />
     <ClCompile Include="Source Files\GUIcontainer.cpp" />
     <ClCompile Include="Source Files\imgui.cpp" />

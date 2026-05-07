@@ -237,6 +237,7 @@ NumEntityToPlace Cursor::placeEntity()
 		currentHintEntity->type != TRAO_DOOR_SWITCH)
 	{
 		entityToPlace1 = hintEntities[0];
+		entityToPlace1.rotation = expectedRotation;
 		return SINGLE_ENTITY;
 	}
 
@@ -247,6 +248,7 @@ NumEntityToPlace Cursor::placeEntity()
 		hintEntities[1].entityCoordx = hintEntities[0].entityCoordx;
 		hintEntities[1].entityCoordy = hintEntities[0].entityCoordy;
 		hintEntities[1].rotation = hintEntities[0].rotation;
+		Entity::sanitizeImpossibleValue(&hintEntities[1]);
 
 		//Find the correct type pair for the other entity
 		switch (hintEntities[0].type)
@@ -275,11 +277,14 @@ NumEntityToPlace Cursor::placeEntity()
 	{
 		entityToPlace1 = hintEntities[0];
 		entityToPlace2 = hintEntities[1];
+		entityToPlace1.rotation = expectedRotation;
+		entityToPlace2.rotation = expectedRotation;
 
 		//Copy location and rotation of hint entity 2 to hint entity 1
 		hintEntities[0].entityCoordx = hintEntities[1].entityCoordx;
 		hintEntities[0].entityCoordy = hintEntities[1].entityCoordy;
 		hintEntities[0].rotation = hintEntities[1].rotation;
+		Entity::sanitizeImpossibleValue(&hintEntities[0]);
 
 		hintEntities[1].type = NONE; //Additionally, since the second hint entity is always being drawn, set the type to none to prevent drawing.
 
@@ -321,12 +326,15 @@ EntityData Cursor::getSecondEntityData()
 void Cursor::setHintEntityType(entityType type)
 {
 	currentHintEntity->type = type;
+	Entity::sanitizeImpossibleValue(currentHintEntity);
 	setHintBuffer();
 }
 
 void Cursor::setHintEntityRotation(EntityRotation rotation)
 {
-	currentHintEntity->rotation = rotation;
+	expectedRotation = rotation;
+	currentHintEntity->rotation = expectedRotation;
+	Entity::sanitizeImpossibleValue(currentHintEntity);
 	setHintBuffer();
 }
 
@@ -335,6 +343,7 @@ void Cursor::resetHintEntity()
 	hintEntities[0].type = NONE;
 	hintEntities[1].type = NONE;
 	currentHintEntity = &hintEntities[0];
+	Entity::sanitizeImpossibleValue(currentHintEntity);
 }
 
 void Cursor::swapHintPointer()
@@ -347,6 +356,8 @@ void Cursor::swapHintPointer()
 	{
 		currentHintEntity = &hintEntities[0];
 	}
+	currentHintEntity->rotation = expectedRotation;
+	Entity::sanitizeImpossibleValue(currentHintEntity);
 }
 
 void Cursor::setHintBuffer()

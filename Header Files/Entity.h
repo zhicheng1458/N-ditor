@@ -49,7 +49,7 @@ enum EntityRotation
 	ENTITY_DEGREE_315 = 7,
 };
 
-struct EntityData
+struct EntityData //TODO: Include mode of the entity
 {
 	int type = NONE;
 	int entityCoordx = 0;
@@ -73,4 +73,9 @@ struct ConnectorShaderInfo
 	glm::ivec2 entity1Coord;
 	glm::ivec2 entity2Coord;
 	int highlight; //0 for no highlight, 1 for highlight;
+};
+
+namespace Entity
+{
+	void sanitizeImpossibleValue(EntityData* e);
 };
