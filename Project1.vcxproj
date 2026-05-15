@@ -158,6 +158,7 @@
     <ClInclude Include="Header Files\stb_image.h" />
     <ClInclude Include="Header Files\SystemMessageGUI.h" />
     <ClInclude Include="Header Files\Texture.h" />
+    <ClInclude Include="Header Files\Tile.h" />
     <ClInclude Include="Header Files\TileHandler.h" />
     <ClInclude Include="Header Files\UtilityFunctions.h" />
   </ItemGroup>
@@ -185,6 +186,7 @@
     <ClCompile Include="Source Files\stb_image_impl.cpp" />
     <ClCompile Include="Source Files\SystemMessageGUI.cpp" />
     <ClCompile Include="Source Files\Texture.cpp" />
+    <ClCompile Include="Source Files\Tile.cpp" />
     <ClCompile Include="Source Files\TileHandler.cpp" />
     <ClCompile Include="Source Files\UtilityFunctions.cpp" />
   </ItemGroup>

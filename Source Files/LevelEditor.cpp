@@ -248,34 +248,62 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					case GLFW_KEY_D:
 						currentEntityRotation = ENTITY_DEGREE_0;
 						entities.setHighlightedEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_E:
 						currentEntityRotation = ENTITY_DEGREE_45;
 						entities.setHighlightedEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_W:
 						currentEntityRotation = ENTITY_DEGREE_90;
 						entities.setHighlightedEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_Q:
 						currentEntityRotation = ENTITY_DEGREE_135;
 						entities.setHighlightedEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_A:
 						currentEntityRotation = ENTITY_DEGREE_180;
 						entities.setHighlightedEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_Z:
 						currentEntityRotation = ENTITY_DEGREE_225;
 						entities.setHighlightedEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_S:
 						currentEntityRotation = ENTITY_DEGREE_270;
 						entities.setHighlightedEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
 					case GLFW_KEY_C:
 						currentEntityRotation = ENTITY_DEGREE_315;
 						entities.setHighlightedEntityRotation(currentEntityRotation);
+						mouse.setHintEntityRotation(currentEntityRotation);
+						break;
+					case GLFW_KEY_1:
+						currentEntityMode = TRACE_WALL_CLOCKWISE;
+						entities.setHighlightedEntityMode(currentEntityMode);
+						mouse.setHintEntityMode(currentEntityMode);
+						break;
+					case GLFW_KEY_2:
+						currentEntityMode = TRACE_WALL_COUNTERCLOCKWISE;
+						entities.setHighlightedEntityMode(currentEntityMode);
+						mouse.setHintEntityMode(currentEntityMode);
+						break;
+					case GLFW_KEY_3:
+						currentEntityMode = TURN_CLOCKWISE_ON_COLLISION;
+						entities.setHighlightedEntityMode(currentEntityMode);
+						mouse.setHintEntityMode(currentEntityMode);
+						break;
+					case GLFW_KEY_4:
+						currentEntityMode = TURN_COUNTERCLOCKWISE_ON_COLLISION;
+						entities.setHighlightedEntityMode(currentEntityMode);
+						mouse.setHintEntityMode(currentEntityMode);
 						break;
 					case GLFW_KEY_SPACE:
 						overlay.showTray();
@@ -460,6 +488,22 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						currentEntityRotation = ENTITY_DEGREE_315;
 						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
+					case GLFW_KEY_1:
+						currentEntityMode = TRACE_WALL_CLOCKWISE;
+						mouse.setHintEntityMode(currentEntityMode);
+						break;
+					case GLFW_KEY_2:
+						currentEntityMode = TRACE_WALL_COUNTERCLOCKWISE;
+						mouse.setHintEntityMode(currentEntityMode);
+						break;
+					case GLFW_KEY_3:
+						currentEntityMode = TURN_CLOCKWISE_ON_COLLISION;
+						mouse.setHintEntityMode(currentEntityMode);
+						break;
+					case GLFW_KEY_4:
+						currentEntityMode = TURN_COUNTERCLOCKWISE_ON_COLLISION;
+						mouse.setHintEntityMode(currentEntityMode);
+						break;
 					default:
 						break;
 				}
@@ -506,6 +550,11 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						{
 							tiles.flipSelectedVertically();
 							entities.flipSelectedVertically();
+						}
+					case GLFW_KEY_R:
+						if (!leftDown)
+						{
+							tiles.invertSelected();
 						}
 						break;
 					default:

@@ -13,7 +13,7 @@ enum entityType
 	LOCKED_DOOR = 6,
 	LOCKED_DOOR_SWITCH = 7,
 	TRAP_DOOR = 8,
-	TRAO_DOOR_SWITCH = 9,
+	TRAP_DOOR_SWITCH = 9,
 	BOUNCE_PAD = 10,
 	ONE_WAY = 11,
 	CHAINGUN = 12,
@@ -49,12 +49,21 @@ enum EntityRotation
 	ENTITY_DEGREE_315 = 7,
 };
 
+enum EntityMode
+{
+	TRACE_WALL_CLOCKWISE = 0,
+	TRACE_WALL_COUNTERCLOCKWISE = 1,
+	TURN_CLOCKWISE_ON_COLLISION = 2,
+	TURN_COUNTERCLOCKWISE_ON_COLLISION = 3,
+};
+
 struct EntityData //TODO: Include mode of the entity
 {
 	int type = NONE;
 	int entityCoordx = 0;
 	int entityCoordy = 0;
 	int rotation = ENTITY_DEGREE_0;
+	int mode = TRACE_WALL_CLOCKWISE;
 	glm::vec3 color = glm::vec3(0.0f);
 	int highlight = 0; //0 for no highlight, 1 for highlight;
 	EntityData* pair = nullptr;
@@ -77,5 +86,6 @@ struct ConnectorShaderInfo
 
 namespace Entity
 {
-	void sanitizeImpossibleValue(EntityData* e);
+	void sanitizeImpossibleValue(EntityData & e);
+	bool isSame(const EntityData& data1, const EntityData& data2);
 };

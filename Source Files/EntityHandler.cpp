@@ -23,44 +23,6 @@ EntityHandler::EntityHandler(float tileSize, const Palette& p)
 	glGenBuffers(1, &volatileEntityDataBuffer);
 	glGenBuffers(1, &volatileEntityConnectorBuffer);
 
-	/*
-	for (int i = 0; i < 29; i++)
-	{
-		EntityData testData;
-		testData.entityCoordx = (i+1)*4+6;
-		testData.entityCoordy = 10+i;
-		testData.type = i;
-		testData.rotation = i % 8;
-		testData.color = glm::vec3(1.0f);
-		testData.highlight = 0;
-		testData.pair = nullptr;
-
-		this->addStaticEntity(testData);
-	}
-
-	EntityConnector exitConnector;
-	EntityConnector lockedDoorConnector;
-	EntityConnector closedDoorConnector;
-	exitConnector.e1 = entityDatas[3];
-	exitConnector.e2 = entityDatas[4];
-	exitConnector.highlight = 0;
-	entityDatas[3]->pair = entityDatas[4];
-	entityDatas[4]->pair = entityDatas[3];
-	lockedDoorConnector.e1 = entityDatas[6];
-	lockedDoorConnector.e2 = entityDatas[7];
-	lockedDoorConnector.highlight = 0;
-	entityDatas[6]->pair = entityDatas[7];
-	entityDatas[7]->pair = entityDatas[6];
-	closedDoorConnector.e1 = entityDatas[8];
-	closedDoorConnector.e2 = entityDatas[9];
-	closedDoorConnector.highlight = 0;
-	entityDatas[8]->pair = entityDatas[9];
-	entityDatas[9]->pair = entityDatas[8];
-	entityConnections.push_back(exitConnector);
-	entityConnections.push_back(lockedDoorConnector);
-	entityConnections.push_back(closedDoorConnector);
-	*/
-
 	this->usePalette(p);
 	this->setStaticBuffers();
 }
@@ -134,7 +96,17 @@ void EntityHandler::setHighlightedEntityRotation(EntityRotation rotation)
 	if (lastHighlightedEntity->rotation == rotation) { return; }
 	lastHighlightedEntity->rotation = rotation;
 	//TODO: Perform sanity check
-	Entity::sanitizeImpossibleValue(lastHighlightedEntity);
+	Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
+	update();
+}
+
+void EntityHandler::setHighlightedEntityMode(EntityMode mode)
+{
+	if (lastHighlightedEntity == nullptr) { return; };
+	if (lastHighlightedEntity->mode == mode) { return; }
+	lastHighlightedEntity->mode = mode;
+	//TODO: Perform sanity check
+	Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
 	update();
 }
 
@@ -144,41 +116,99 @@ void EntityHandler::stopHighlight()
 	lastHighlightedEntity = nullptr;
 }
 
-bool EntityHandler::isSame(EntityData data1, EntityData data2)
+bool EntityHandler::addStaticEntity(EntityData data)
 {
-	return false;
-}
-
-bool EntityHandler::isLessThan(EntityData data1, EntityData data2)
-{
-	return false;
-}
-
-void EntityHandler::addStaticEntity(EntityData data)
-{
-	//TODO: Perform sanity check
-
-	clearStaticBuffers();
 	EntityData* entity = new EntityData(data);
 	entity->highlight = 0;
-	Entity::sanitizeImpossibleValue(entity);
+	Entity::sanitizeImpossibleValue(*entity);
+
+	//Check if the type is allowed to be the same
+	bool dupeAllowed = false;
+	for (int j = 0; j < dupeAllowedList.size(); j++)
+	{
+		if (entity->type == dupeAllowedList[j])
+		{
+			dupeAllowed = true;
+			break;
+		}
+	}
+
+	if (!dupeAllowed)
+	{
+		//TODO: Extremely inefficient duplicate removal that need to be changed
+		for (int i = 0; i < entityDatas.size(); i++)
+		{
+			if (Entity::isSame(*entity, *entityDatas[i]))
+			{
+				//Check if the type is allowed to be the same
+				delete entity;
+				return false;
+			}
+		}
+	}
+
+	//Mine <-> Toggle inversion, also very inefficient right now
+	if (entity->type == MINE)
+	{
+		for (int i = 0; i < entityDatas.size(); i++)
+		{
+			if (entityDatas[i]->type == TOGGLE_MINE &&
+				entity->entityCoordx == entityDatas[i]->entityCoordx &&
+				entity->entityCoordy == entityDatas[i]->entityCoordy)
+			{
+				delete entity;
+				entityDatas[i]->type = MINE;
+				clearStaticBuffers();
+				setStaticBuffers();
+				return true;
+			}
+		}
+	}
+	else if (entity->type == TOGGLE_MINE)
+	{
+		for (int i = 0; i < entityDatas.size(); i++)
+		{
+			if (entityDatas[i]->type == MINE &&
+				entity->entityCoordx == entityDatas[i]->entityCoordx &&
+				entity->entityCoordy == entityDatas[i]->entityCoordy)
+			{
+				delete entity;
+				entityDatas[i]->type = TOGGLE_MINE;
+				clearStaticBuffers();
+				setStaticBuffers();
+				return true;
+			}
+		}
+	}
+
 	entityDatas.push_back(entity);
+	clearStaticBuffers();
 	setStaticBuffers();
+	return true;
 }
 
-void EntityHandler::addStaticEntity(EntityData data, EntityData pair)
+bool EntityHandler::addStaticEntity(EntityData data, EntityData pair)
 {
-	//TODO: Perform sanity check
-
-	clearStaticBuffers();
 	EntityData* entity = new EntityData(data);
 	EntityData* pairEntity = new EntityData(pair);
 	entity->highlight = 0;
 	pairEntity->highlight = 0;
 	entity->pair = pairEntity;
 	pairEntity->pair = entity;
-	Entity::sanitizeImpossibleValue(entity);
-	Entity::sanitizeImpossibleValue(pairEntity);
+	Entity::sanitizeImpossibleValue(*entity);
+	Entity::sanitizeImpossibleValue(*pairEntity);
+
+	//TODO: Extremely inefficient duplicate removal that need to be changed
+	for (int i = 0; i < entityDatas.size(); i++)
+	{
+		if (Entity::isSame(*entity, *entityDatas[i]))
+		{
+			delete entity;
+			delete pairEntity;
+			return false;
+		}
+	}
+
 	entityDatas.push_back(entity);
 	entityDatas.push_back(pairEntity);
 	EntityConnector connector;
@@ -186,7 +216,9 @@ void EntityHandler::addStaticEntity(EntityData data, EntityData pair)
 	connector.e2 = pairEntity;
 	connector.highlight = 0;
 	entityConnections.push_back(connector);
+	clearStaticBuffers();
 	setStaticBuffers();
+	return true;
 }
 
 void EntityHandler::setHintToFollowMouse(bool toFollow)
@@ -267,8 +299,8 @@ void EntityHandler::stageSelected()
 			e2->highlight = 1;
 			e1->pair = e2;
 			e2->pair = e1;
-			Entity::sanitizeImpossibleValue(e1);
-			Entity::sanitizeImpossibleValue(e2);
+			Entity::sanitizeImpossibleValue(*e1);
+			Entity::sanitizeImpossibleValue(*e2);
 			volatileEntityDynamicDatas.push_back(e1);
 			volatileEntityDynamicDatas.push_back(e2);
 			EntityConnector connector;
@@ -288,7 +320,7 @@ void EntityHandler::stageSelected()
 				/* TODO: Same here, same as adding a new entity but on the volatile vector */
 				EntityData * e = new EntityData(*entityDatas[i]);
 				e->highlight = 1;
-				Entity::sanitizeImpossibleValue(e);
+				Entity::sanitizeImpossibleValue(*e);
 				volatileEntityDynamicDatas.push_back(e);
 			}
 		}
@@ -409,7 +441,7 @@ void EntityHandler::flipSelectedHorizontally()
 {
 	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
 	{
-		flipEntityHorizontally(volatileEntityDynamicDatas[i], selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+		flipEntityHorizontally(*volatileEntityDynamicDatas[i], selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
 	}
 	setVolatileBuffers();
 }
@@ -418,7 +450,7 @@ void EntityHandler::flipSelectedVertically()
 {
 	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
 	{
-		flipEntityVertically(volatileEntityDynamicDatas[i], selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+		flipEntityVertically(*volatileEntityDynamicDatas[i], selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
 	}
 	setVolatileBuffers();
 }
@@ -427,7 +459,7 @@ void EntityHandler::rotateSelectedClockwise()
 {
 	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
 	{
-		rotateEntityClockwise(volatileEntityDynamicDatas[i], pivotEntityLocation);
+		rotateEntityClockwise(*volatileEntityDynamicDatas[i], pivotEntityLocation);
 	}
 
 	//The two corner of the selected region also need to be rotated
@@ -456,7 +488,7 @@ void EntityHandler::rotateSelectedCounterClockwise()
 {
 	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
 	{
-		rotateEntityCounterClockwise(volatileEntityDynamicDatas[i], pivotEntityLocation);
+		rotateEntityCounterClockwise(*volatileEntityDynamicDatas[i], pivotEntityLocation);
 	}
 
 	//The two corner of the selected region also need to be rotated
@@ -530,13 +562,17 @@ void EntityHandler::drawEntities(glm::mat4 viewProjMtx, const uint entityBuffer,
 	glEnableVertexAttribArray(entityRotationLoc);
 	glVertexAttribIPointer(entityRotationLoc, 1, GL_INT, sizeof(EntityData), (void*)(3 * sizeof(int)));
 
-	uint entityColorLoc = 3;
-	glEnableVertexAttribArray(entityColorLoc);
-	glVertexAttribPointer(entityColorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(EntityData), (void*)(4 * sizeof(int)));
+	uint entityModeLoc = 3;
+	glEnableVertexAttribArray(entityModeLoc);
+	glVertexAttribIPointer(entityModeLoc, 1, GL_INT, sizeof(EntityData), (void*)(4 * sizeof(int)));
 
-	uint entityHighlightLoc = 4;
+	uint entityColorLoc = 4;
+	glEnableVertexAttribArray(entityColorLoc);
+	glVertexAttribPointer(entityColorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(EntityData), (void*)(5 * sizeof(int)));
+
+	uint entityHighlightLoc = 5;
 	glEnableVertexAttribArray(entityHighlightLoc);
-	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(EntityData), (void*)(4 * sizeof(int) + 3 * sizeof(float)));
+	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(EntityData), (void*)(5 * sizeof(int) + 3 * sizeof(float)));
 
 	glDrawArrays(GL_POINTS, 0, entityBufferSize); //Use GL_POINTS because every "point" is 1 EntityData.
 
@@ -680,7 +716,7 @@ void EntityHandler::resolveHighlight(EntityData* entityToHighlight, EntityData* 
 		entityToUnHighlight->highlight = 0;
 		switch (entityToUnHighlight->type)
 		{
-		case EXIT: case EXIT_SWITCH: case LOCKED_DOOR: case LOCKED_DOOR_SWITCH: case TRAP_DOOR: case TRAO_DOOR_SWITCH:
+		case EXIT: case EXIT_SWITCH: case LOCKED_DOOR: case LOCKED_DOOR_SWITCH: case TRAP_DOOR: case TRAP_DOOR_SWITCH:
 		{
 			if (entityToUnHighlight->pair != nullptr) { entityToUnHighlight->pair->highlight = 0; }
 			for (int i = 0; i < entityConnections.size(); i++)
@@ -700,7 +736,7 @@ void EntityHandler::resolveHighlight(EntityData* entityToHighlight, EntityData* 
 		entityToHighlight->highlight = 1;
 		switch (entityToHighlight->type)
 		{
-		case EXIT: case EXIT_SWITCH: case LOCKED_DOOR: case LOCKED_DOOR_SWITCH: case TRAP_DOOR: case TRAO_DOOR_SWITCH:
+		case EXIT: case EXIT_SWITCH: case LOCKED_DOOR: case LOCKED_DOOR_SWITCH: case TRAP_DOOR: case TRAP_DOOR_SWITCH:
 		{
 			if (entityToHighlight->pair != nullptr) { entityToHighlight->pair->highlight = 1; }
 			for (int i = 0; i < entityConnections.size(); i++)
@@ -822,26 +858,26 @@ void EntityHandler::clearVolatileBuffers()
 	volatileEntityConnections.clear();
 }
 
-void EntityHandler::flipEntityHorizontally(EntityData* entity, int xMinBoundary, int xMaxBoundary)
+void EntityHandler::flipEntityHorizontally(EntityData & entity, int xMinBoundary, int xMaxBoundary)
 {
-	entity->entityCoordx = xMaxBoundary - (entity->entityCoordx - xMinBoundary);
+	entity.entityCoordx = xMaxBoundary - (entity.entityCoordx - xMinBoundary);
 
-	switch (entity->type)
+	switch (entity.type)
 	{
 		//8-rotation style type: 0 <-> 4, 1 <-> 3, 5 <-> 7
 		case LOCKED_DOOR: case TRAP_DOOR: case BOUNCE_PAD: case ONE_WAY: case LASER_TURRET: case BOOST_PAD:
 		{
-			int baseRotation = entity->rotation / 4;
-			int remainder = entity->rotation % 4;
-			entity->rotation = (baseRotation * 4 + 4 - remainder) % 8;
+			int baseRotation = entity.rotation / 4;
+			int remainder = entity.rotation % 4;
+			entity.rotation = (baseRotation * 4 + 4 - remainder) % 8;
 			break;
 		}
 		//4-rotation style type: 0 <-> 4
 		case CHAINGUN: case LASER_DRONE: case REGULAR_DRONE: case CHASE_DRONE: case MICRO_DRONE: case THWUMP:
 		{
-			int baseRotation = entity->rotation / 4;
-			int remainder = entity->rotation % 4;
-			entity->rotation = (baseRotation * 4 + 4 - remainder) % 8;
+			int baseRotation = entity.rotation / 4;
+			int remainder = entity.rotation % 4;
+			entity.rotation = (baseRotation * 4 + 4 - remainder) % 8;
 			break;
 		}
 		default:
@@ -854,22 +890,22 @@ void EntityHandler::flipEntityHorizontally(EntityData* entity, int xMinBoundary,
 	Entity::sanitizeImpossibleValue(entity);
 }
 
-void EntityHandler::flipEntityVertically(EntityData* entity, int yMinBoundary, int yMaxBoundary)
+void EntityHandler::flipEntityVertically(EntityData & entity, int yMinBoundary, int yMaxBoundary)
 {
-	entity->entityCoordy = yMaxBoundary - (entity->entityCoordy - yMinBoundary);
+	entity.entityCoordy = yMaxBoundary - (entity.entityCoordy - yMinBoundary);
 
-	switch (entity->type)
+	switch (entity.type)
 	{
 		//8-rotation style type: 1 <-> 7, 2 <-> 6, 3 <-> 5
 		case LOCKED_DOOR: case TRAP_DOOR: case BOUNCE_PAD: case ONE_WAY: case LASER_TURRET: case BOOST_PAD:
 		{
-			entity->rotation = (8 - entity->rotation) % 8;
+			entity.rotation = (8 - entity.rotation) % 8;
 			break;
 		}
 		//4-rotation style type: 2 <-> 6
 		case CHAINGUN: case LASER_DRONE: case REGULAR_DRONE: case CHASE_DRONE: case MICRO_DRONE: case THWUMP:
 		{
-			entity->rotation = (8 - entity->rotation) % 8;
+			entity.rotation = (8 - entity.rotation) % 8;
 			break;
 		}
 		default:
@@ -882,27 +918,27 @@ void EntityHandler::flipEntityVertically(EntityData* entity, int yMinBoundary, i
 	Entity::sanitizeImpossibleValue(entity);
 }
 
-void EntityHandler::rotateEntityClockwise(EntityData* entity, const glm::ivec2 & pivot)
+void EntityHandler::rotateEntityClockwise(EntityData & entity, const glm::ivec2 & pivot)
 {
-	int dx = entity->entityCoordx - pivot.x;
-	int dy = entity->entityCoordy - pivot.y;
+	int dx = entity.entityCoordx - pivot.x;
+	int dy = entity.entityCoordy - pivot.y;
 
-	entity->entityCoordx = pivot.x + dy;
-	entity->entityCoordy = pivot.y - dx;
-	entity->rotation = (entity->rotation + 8 + 2) % 8;
+	entity.entityCoordx = pivot.x + dy;
+	entity.entityCoordy = pivot.y - dx;
+	entity.rotation = (entity.rotation + 8 + 2) % 8;
 
 	//TODO: Perform sanity check
 	Entity::sanitizeImpossibleValue(entity);
 }
 
-void EntityHandler::rotateEntityCounterClockwise(EntityData* entity, const glm::ivec2 & pivot)
+void EntityHandler::rotateEntityCounterClockwise(EntityData & entity, const glm::ivec2 & pivot)
 {
-	int dx = entity->entityCoordx - pivot.x;
-	int dy = entity->entityCoordy - pivot.y;
+	int dx = entity.entityCoordx - pivot.x;
+	int dy = entity.entityCoordy - pivot.y;
 
-	entity->entityCoordx = pivot.x - dy;
-	entity->entityCoordy = pivot.y + dx;
-	entity->rotation = (entity->rotation + 8 - 2) % 8;
+	entity.entityCoordx = pivot.x - dy;
+	entity.entityCoordy = pivot.y + dx;
+	entity.rotation = (entity.rotation + 8 - 2) % 8;
 
 	//TODO: Perform sanity check
 	Entity::sanitizeImpossibleValue(entity);

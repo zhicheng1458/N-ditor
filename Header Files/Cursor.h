@@ -44,6 +44,7 @@ public:
 	EntityData getSecondEntityData();
 	void setHintEntityType(entityType type);
 	void setHintEntityRotation(EntityRotation rotation);
+	void setHintEntityMode(EntityMode mode);
 	void resetHintEntity(); //For when the cursor mode was changed mid placing entity pair
 
 private:
@@ -72,6 +73,7 @@ private:
 	EntityData entityToPlace1; //Use to remember the data for EntityHandler to place the entity
 	EntityData entityToPlace2; //Use to remember the data for EntityHandler to place the entity
 	EntityRotation expectedRotation = ENTITY_DEGREE_0;
+	EntityMode expectedMode = TRACE_WALL_CLOCKWISE;
 	uint hintEntityDataBuffer;
 	uint hintEntityConnectorBuffer;
 

@@ -97,7 +97,7 @@ void TileHandler::deleteTile(TileData data)
 	clearBuffers();
 	for (int i = 0; i < tileDatas.size(); i++)
 	{
-		if (isSameCoord(*tileDatas[i], data))
+		if (isSameCoord(*tileDatas[i], data.tileCoordx, data.tileCoordy))
 		{
 			delete tileDatas[i];
 			tileDatas[i] = nullptr;
@@ -243,7 +243,7 @@ void TileHandler::flipSelectedHorizontally()
 {
 	for (int i = 0; i < volatileTileData.size(); i++)
 	{
-		flipTileHorizontally(volatileTileData[i], selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+		flipTileHorizontally(*volatileTileData[i], selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
 	}
 	setVolatileBuffers();
 }
@@ -252,7 +252,7 @@ void TileHandler::flipSelectedVertically()
 {
 	for (int i = 0; i < volatileTileData.size(); i++)
 	{
-		flipTileVertically(volatileTileData[i], selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+		flipTileVertically(*volatileTileData[i], selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
 	}
 	setVolatileBuffers();
 }
@@ -261,7 +261,7 @@ void TileHandler::rotateSelectedClockwise()
 {
 	for (int i = 0; i < volatileTileData.size(); i++)
 	{
-		rotateTileClockwise(volatileTileData[i], pivotTileLocation);
+		rotateTileClockwise(*volatileTileData[i], pivotTileLocation);
 	}
 
 	//The two corner of the selected region also need to be rotated
@@ -290,7 +290,7 @@ void TileHandler::rotateSelectedCounterClockwise()
 {
 	for (int i = 0; i < volatileTileData.size(); i++)
 	{
-		rotateTileCounterClockwise(volatileTileData[i], pivotTileLocation);
+		rotateTileCounterClockwise(*volatileTileData[i], pivotTileLocation);
 	}
 
 	//The two corner of the selected region also need to be rotated
@@ -311,6 +311,53 @@ void TileHandler::rotateSelectedCounterClockwise()
 
 	selectRegionMinBoundary = glm::ivec2(minX, minY);
 	selectRegionMaxBoundary = glm::ivec2(maxX, maxY);
+
+	setVolatileBuffers();
+}
+
+void TileHandler::invertSelected()
+{
+	int row = (selectRegionMaxBoundary.y - selectRegionMinBoundary.y + 1); //also the height
+	int col = (selectRegionMaxBoundary.x - selectRegionMinBoundary.x + 1); //also the width
+	int size = row * col;
+
+	if (volatileTileData.size() != size)
+	{
+		//Fill all coordinate that didn't have a tile in it with an empty tile
+		std::vector<bool> hasTile(size);
+		for (int i = 0; i < hasTile.size(); i++)
+		{
+			hasTile[i] = false;
+		}
+
+		//Order goes for row first then column
+		for (int i = 0; i < volatileTileData.size(); i++)
+		{
+			int index = (volatileTileData[i]->tileCoordy - selectRegionMinBoundary.y) * col + (volatileTileData[i]->tileCoordx - selectRegionMinBoundary.x);
+			hasTile[index] = true;
+		}
+
+		glm::vec3 selectedTileColor = palette->editorColors.highlightColor / 255.0f;
+
+		for (int i = 0; i < hasTile.size(); i++)
+		{
+			if (!hasTile[i])
+			{
+				TileData* emptyTile = new TileData();
+				emptyTile->tileCoordx = i % col + selectRegionMinBoundary.x;
+				emptyTile->tileCoordy = i / col + selectRegionMinBoundary.y;
+				emptyTile->type = EMPTY;
+				emptyTile->color = selectedTileColor;
+
+				volatileTileData.push_back(emptyTile);
+			}
+		}
+	}
+
+	for (int i = 0; i < volatileTileData.size(); i++)
+	{
+		invertTile(*volatileTileData[i]);
+	}
 
 	setVolatileBuffers();
 }
@@ -455,107 +502,149 @@ void TileHandler::deleteSelectedTileCoordBased(glm::ivec2 corner1, glm::ivec2 co
 	setBuffers();
 }
 
-void TileHandler::flipTileHorizontally(TileData* tile, int xMinBoundary, int xMaxBoundary)
+void TileHandler::flipTileHorizontally(TileData& tile, int xMinBoundary, int xMaxBoundary)
 {
-	tile->tileCoordx = xMaxBoundary - (tile->tileCoordx - xMinBoundary);
+	tile.tileCoordx = xMaxBoundary - (tile.tileCoordx - xMinBoundary);
 
-	switch (tile->type)
+	switch (tile.type)
 	{
 		case HALF:
 		{
-			if (tile->rotation == TILE_DEGREE_0) { tile->rotation = TILE_DEGREE_180; }
-			else if (tile->rotation == TILE_DEGREE_180) { tile->rotation = TILE_DEGREE_0; }
+			if (tile.rotation == TILE_DEGREE_0) { tile.rotation = TILE_DEGREE_180; }
+			else if (tile.rotation == TILE_DEGREE_180) { tile.rotation = TILE_DEGREE_0; }
 			break;
 		}
 		default:
 		{
-			int baseRotation = tile->rotation / 2;
-			int remainder = tile->rotation % 2;
-			tile->rotation = baseRotation * 2 + (remainder + 1) % 2;
+			int baseRotation = tile.rotation / 2;
+			int remainder = tile.rotation % 2;
+			tile.rotation = baseRotation * 2 + (remainder + 1) % 2;
 			break;
 		}
 	}
 }
 
-void TileHandler::flipTileVertically(TileData* tile, int yMinBoundary, int yMaxBoundary)
+void TileHandler::flipTileVertically(TileData& tile, int yMinBoundary, int yMaxBoundary)
 {
-	tile->tileCoordy = yMaxBoundary - (tile->tileCoordy - yMinBoundary);
+	tile.tileCoordy = yMaxBoundary - (tile.tileCoordy - yMinBoundary);
 
-	switch (tile->type)
+	switch (tile.type)
 	{
 		case HALF:
 		{
-			if (tile->rotation == TILE_DEGREE_90) { tile->rotation = TILE_DEGREE_270; }
-			else if (tile->rotation == TILE_DEGREE_270) { tile->rotation = TILE_DEGREE_90; }
+			if (tile.rotation == TILE_DEGREE_90) { tile.rotation = TILE_DEGREE_270; }
+			else if (tile.rotation == TILE_DEGREE_270) { tile.rotation = TILE_DEGREE_90; }
 			break;
 		}
 		default:
 		{
-			tile->rotation = 3 - tile->rotation;
+			tile.rotation = 3 - tile.rotation;
 			break;
 		}
 	}
 }
 
-void TileHandler::rotateTileClockwise(TileData* tile, const glm::ivec2& pivot)
+void TileHandler::rotateTileClockwise(TileData& tile, const glm::ivec2& pivot)
 {
-	int dx = tile->tileCoordx - pivot.x;
-	int dy = tile->tileCoordy - pivot.y;
+	int dx = tile.tileCoordx - pivot.x;
+	int dy = tile.tileCoordy - pivot.y;
 
-	tile->tileCoordx = pivot.x + dy;
-	tile->tileCoordy = pivot.y - dx;
-	tile->rotation = (tile->rotation + 4 - 1) % 4;
+	tile.tileCoordx = pivot.x + dy;
+	tile.tileCoordy = pivot.y - dx;
+	tile.rotation = (tile.rotation + 4 - 1) % 4;
 
 	// Honestly I don't really understand the logic behind why the tiles are made like this but, it is what it is.
-	switch (tile->type)
+	switch (tile.type)
 	{
-	case SMALLSLOPE_RIGHT_60DEG:
-		tile->type = SMALLSLOPE_LEFT_60DEG;
-		break;
-	case SMALLSLOPE_LEFT_60DEG:
-		tile->type = SMALLSLOPE_RIGHT_60DEG;
-		break;
-	case LARGESLOPE_RIGHT_60DEG:
-		tile->type = LARGESLOPE_LEFT_60DEG;
-		break;
-	case LARGESLOPE_LEFT_60DEG:
-		tile->type = LARGESLOPE_RIGHT_60DEG;
-		break;
-	default:
-		break;
+		case SMALLSLOPE_RIGHT_60DEG:
+			tile.type = SMALLSLOPE_LEFT_60DEG;
+			break;
+		case SMALLSLOPE_LEFT_60DEG:
+			tile.type = SMALLSLOPE_RIGHT_60DEG;
+			break;
+		case LARGESLOPE_RIGHT_60DEG:
+			tile.type = LARGESLOPE_LEFT_60DEG;
+			break;
+		case LARGESLOPE_LEFT_60DEG:
+			tile.type = LARGESLOPE_RIGHT_60DEG;
+			break;
+		default:
+			break;
 	}
 }
 
-void TileHandler::rotateTileCounterClockwise(TileData* tile, const glm::ivec2& pivot)
+void TileHandler::rotateTileCounterClockwise(TileData& tile, const glm::ivec2& pivot)
 {
-	int dx = tile->tileCoordx - pivot.x;
-	int dy = tile->tileCoordy - pivot.y;
+	int dx = tile.tileCoordx - pivot.x;
+	int dy = tile.tileCoordy - pivot.y;
 
-	tile->tileCoordx = pivot.x - dy;
-	tile->tileCoordy = pivot.y + dx;
-	tile->rotation = (tile->rotation + 4 + 1) % 4;
+	tile.tileCoordx = pivot.x - dy;
+	tile.tileCoordy = pivot.y + dx;
+	tile.rotation = (tile.rotation + 4 + 1) % 4;
 
 	// Honestly I don't really understand the logic behind why the tiles are made like this but, it is what it is.
-	switch (tile->type)
+	switch (tile.type)
 	{
-	case SMALLSLOPE_RIGHT_60DEG:
-		tile->type = SMALLSLOPE_LEFT_60DEG;
-		break;
-	case SMALLSLOPE_LEFT_60DEG:
-		tile->type = SMALLSLOPE_RIGHT_60DEG;
-		break;
-	case LARGESLOPE_RIGHT_60DEG:
-		tile->type = LARGESLOPE_LEFT_60DEG;
-		break;
-	case LARGESLOPE_LEFT_60DEG:
-		tile->type = LARGESLOPE_RIGHT_60DEG;
-		break;
-	default:
-		break;
+		case SMALLSLOPE_RIGHT_60DEG:
+			tile.type = SMALLSLOPE_LEFT_60DEG;
+			break;
+		case SMALLSLOPE_LEFT_60DEG:
+			tile.type = SMALLSLOPE_RIGHT_60DEG;
+			break;
+		case LARGESLOPE_RIGHT_60DEG:
+			tile.type = LARGESLOPE_LEFT_60DEG;
+			break;
+		case LARGESLOPE_LEFT_60DEG:
+			tile.type = LARGESLOPE_RIGHT_60DEG;
+			break;
+		default:
+			break;
 	}
 }
 
-bool TileHandler::isSameCoord(TileData data1, TileData data2)
+void TileHandler::invertTile(TileData& tile)
 {
-	return data1.tileCoordx == data2.tileCoordx && data1.tileCoordy == data2.tileCoordy;
+	switch (tile.type)
+	{
+		case SLOPE_45DEG: case HALF:
+			tile.rotation = (tile.rotation + 2) % 4;
+			break;
+		case EMPTY:
+			tile.type = FULL;
+			break;
+		case FULL:
+			tile.type = EMPTY;
+			break;
+		case SMALLSLOPE_RIGHT_60DEG:
+			tile.type = LARGESLOPE_RIGHT_60DEG;
+			tile.rotation = (tile.rotation + 2) % 4;
+			break;
+		case SMALLSLOPE_LEFT_60DEG:
+			tile.type = LARGESLOPE_LEFT_60DEG;
+			tile.rotation = (tile.rotation + 2) % 4;
+			break;
+		case CURVE_IN:
+			tile.type = CURVE_OUT;
+			tile.rotation = (tile.rotation + 2) % 4;
+			break;
+		case LARGESLOPE_RIGHT_60DEG:
+			tile.type = SMALLSLOPE_RIGHT_60DEG;
+			tile.rotation = (tile.rotation + 2) % 4;
+			break;
+		case LARGESLOPE_LEFT_60DEG:
+			tile.type = SMALLSLOPE_LEFT_60DEG;
+			tile.rotation = (tile.rotation + 2) % 4;
+			break;
+		case CURVE_OUT:
+			tile.type = CURVE_IN;
+			tile.rotation = (tile.rotation + 2) % 4;
+			break;
+		default:
+			break;
+	}
+}
+
+bool TileHandler::isSameCoord(TileData data, int tileCoordx, int tileCoordy)
+{
+	return data.tileCoordx == tileCoordx && data.tileCoordy == tileCoordy;
 }

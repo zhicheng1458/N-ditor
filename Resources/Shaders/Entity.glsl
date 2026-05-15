@@ -9,13 +9,15 @@
 layout(location=0) in int entityType;
 layout(location=1) in ivec2 entityCoordinate;
 layout(location=2) in int entityRotation;
-layout(location=3) in vec3 entityColor;
-layout(location=4) in int highlight;
+layout(location=3) in int entityMode;
+layout(location=4) in vec3 entityColor;
+layout(location=5) in int highlight;
 
 out ENTITY_DATA_OUT {
 	int entityType;
 	ivec2 entityCoordinate;
 	int entityRotation;
+	int entityMode;
 	vec3 entityColor;
 	int highlight;
 } entityData;
@@ -29,6 +31,7 @@ void main()
 	entityData.entityType = entityType;
 	entityData.entityCoordinate = entityCoordinate;
 	entityData.entityRotation = entityRotation;
+	entityData.entityMode = entityMode;
 	entityData.entityColor = entityColor;
 	entityData.highlight = highlight;
 }
@@ -46,6 +49,7 @@ in ENTITY_DATA_OUT {
 	int entityType;
 	ivec2 entityCoordinate;
 	int entityRotation;
+	int entityMode;
 	vec3 entityColor;
 	int highlight;
 } entityData[];

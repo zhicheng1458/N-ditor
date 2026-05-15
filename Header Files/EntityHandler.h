@@ -48,10 +48,11 @@ public:
 	void highlightClosestEntity(const glm::vec2 entityCoord, const float radius);
 	void moveHighlightedEntity(int cursorX, int cursorY);
 	void setHighlightedEntityRotation(EntityRotation rotation);
+	void setHighlightedEntityMode(EntityMode mode);
 	void stopHighlight();
 
-	void addStaticEntity(EntityData data);
-	void addStaticEntity(EntityData data, EntityData pair);
+	bool addStaticEntity(EntityData data);
+	bool addStaticEntity(EntityData data, EntityData pair);
 
 	void setHintToFollowMouse(bool toFollow);
 	void moveHint(glm::vec2 cursorInModelSpace); //cursorX and cursorY are supplied as entity coordinate at the mouse location.
@@ -103,11 +104,10 @@ private:
 	uint volatileEntityDataBuffer;
 	uint volatileEntityConnectorBuffer;
 
+	std::vector<entityType> dupeAllowedList = {GOLD, EVIL_NINJA}; //TODO: allow user to directly modify this list
+
 	void drawEntities(glm::mat4 viewProjMtx, const uint entityBuffer, GLsizei entityBufferSize);
 	void drawConnectors(glm::mat4 viewProjMtx, const uint connectorBuffer, GLsizei connectorBufferSize);
-
-	bool isSame(EntityData data1, EntityData data2);
-	bool isLessThan(EntityData data1, EntityData data2);
 
 	void deleteEntity(EntityData* data);
 	EntityData* findClosestEntity(const glm::vec2 entityCoord, const float radius);
@@ -118,8 +118,8 @@ private:
 	void setVolatileBuffers();
 	void clearVolatileBuffers();
 
-	void flipEntityHorizontally(EntityData* entity, int xMinBoundary, int xMaxBoundary);
-	void flipEntityVertically(EntityData* entity, int yMinBoundary, int yMaxBoundary);
-	void rotateEntityClockwise(EntityData* entity, const glm::ivec2 & pivot);
-	void rotateEntityCounterClockwise(EntityData* entity, const glm::ivec2 & pivot);
+	void flipEntityHorizontally(EntityData & entity, int xMinBoundary, int xMaxBoundary);
+	void flipEntityVertically(EntityData & entity, int yMinBoundary, int yMaxBoundary);
+	void rotateEntityClockwise(EntityData & entity, const glm::ivec2 & pivot);
+	void rotateEntityCounterClockwise(EntityData & entity, const glm::ivec2 & pivot);
 };

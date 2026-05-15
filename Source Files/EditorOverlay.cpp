@@ -109,10 +109,6 @@ void EditorOverlay::processMouseLocation(float mouseX, float mouseY)
 
 entityType EditorOverlay::getSelectedEntityType()
 {
-	if (lastSelectedEntityType != NONE)
-	{
-		return lastSelectedEntityType;
-	}
 	return lastSelectedEntityType;
 }
 

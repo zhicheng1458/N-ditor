@@ -2,42 +2,11 @@
 #include "Core.h"
 #include "Shader.h"
 #include "AABBTree.h"
+
+#include "Tile.h"
 #include "Palette.h"
 
 #include "UtilityFunctions.h"
-
-//MAKE SURE THE SHADER IS USING EACH TYPE TO ITS MEANING AS LISTED HERE
-enum TileType
-{
-	EMPTY = -1,
-	FULL = 0,
-	SLOPE_45DEG = 1,
-	SMALLSLOPE_RIGHT_60DEG = 2,
-	SMALLSLOPE_LEFT_60DEG = 3,
-	CURVE_IN = 4,
-	HALF = 5,
-	LARGESLOPE_RIGHT_60DEG = 6,
-	LARGESLOPE_LEFT_60DEG = 7,
-	CURVE_OUT = 8
-};
-
-//In actual editor, the tile is rotated CLOCKWISE;
-enum TileRotation
-{
-	TILE_DEGREE_0 = 0,
-	TILE_DEGREE_90 = 1,
-	TILE_DEGREE_180 = 2,
-	TILE_DEGREE_270 = 3
-};
-
-struct TileData
-{
-	int type;
-	int tileCoordx;
-	int tileCoordy; //each tile takes up 1 unit, so top left tile is (0, 0);
-	int rotation;
-	glm::vec3 color;
-};
 
 class TileHandler
 {
@@ -70,6 +39,7 @@ public:
 	void flipSelectedVertically();
 	void rotateSelectedClockwise();
 	void rotateSelectedCounterClockwise();
+	void invertSelected();
 
 private:
 
@@ -108,10 +78,11 @@ private:
 
 	//Which 2 corners doesn't matter as long as they are diagonal corner of each other
 	void deleteSelectedTileCoordBased(glm::ivec2 corner1, glm::ivec2 corner2);
-	void flipTileHorizontally(TileData* tile, int xMinBoundary, int xMaxBoundary);
-	void flipTileVertically(TileData* tile, int yMinBoundary, int yMaxBoundary);
-	void rotateTileClockwise(TileData* tile, const glm::ivec2& pivot);
-	void rotateTileCounterClockwise(TileData* tile, const glm::ivec2& pivot);
+	void flipTileHorizontally(TileData& tile, int xMinBoundary, int xMaxBoundary);
+	void flipTileVertically(TileData& tile, int yMinBoundary, int yMaxBoundary);
+	void rotateTileClockwise(TileData& tile, const glm::ivec2& pivot);
+	void rotateTileCounterClockwise(TileData& tile, const glm::ivec2& pivot);
+	void invertTile(TileData& tile);
 
-	bool isSameCoord(TileData data1, TileData data2);
+	bool isSameCoord(TileData data, int tileCoordx, int tileCoordy);
 };

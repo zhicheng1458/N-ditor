@@ -122,6 +122,7 @@ private:
 	glm::ivec2 oldEntityCoordinate = glm::vec2(0);
 	TileType currentTileType = SLOPE_45DEG; //Default tile type is 45 deg tile
 	TileRotation currentTileRotation = TILE_DEGREE_0;
+	EntityMode currentEntityMode = TRACE_WALL_CLOCKWISE;
 	EntityRotation currentEntityRotation = ENTITY_DEGREE_0;
 	const float MAX_HIGHLIGHT_SEARCH_RADIUS = 5.0f;
 	bool hasRegionSelected = false; //To differentiate between if tile placement is on the cursor or on the selected region

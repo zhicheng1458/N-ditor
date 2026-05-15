@@ -234,10 +234,11 @@ NumEntityToPlace Cursor::placeEntity()
 		currentHintEntity->type != LOCKED_DOOR &&
 		currentHintEntity->type != LOCKED_DOOR_SWITCH &&
 		currentHintEntity->type != TRAP_DOOR &&
-		currentHintEntity->type != TRAO_DOOR_SWITCH)
+		currentHintEntity->type != TRAP_DOOR_SWITCH)
 	{
 		entityToPlace1 = hintEntities[0];
 		entityToPlace1.rotation = expectedRotation;
+		entityToPlace1.mode = expectedMode;
 		return SINGLE_ENTITY;
 	}
 
@@ -247,8 +248,8 @@ NumEntityToPlace Cursor::placeEntity()
 		//Copy location and rotation of hint entity 1 to hint entity 2
 		hintEntities[1].entityCoordx = hintEntities[0].entityCoordx;
 		hintEntities[1].entityCoordy = hintEntities[0].entityCoordy;
-		hintEntities[1].rotation = hintEntities[0].rotation;
-		Entity::sanitizeImpossibleValue(&hintEntities[1]);
+		hintEntities[1].rotation = expectedRotation;
+		hintEntities[1].mode = expectedMode;
 
 		//Find the correct type pair for the other entity
 		switch (hintEntities[0].type)
@@ -262,12 +263,14 @@ NumEntityToPlace Cursor::placeEntity()
 		case LOCKED_DOOR_SWITCH:
 			hintEntities[1].type = LOCKED_DOOR; break;
 		case TRAP_DOOR:
-			hintEntities[1].type = TRAO_DOOR_SWITCH; break;
-		case TRAO_DOOR_SWITCH:
+			hintEntities[1].type = TRAP_DOOR_SWITCH; break;
+		case TRAP_DOOR_SWITCH:
 			hintEntities[1].type = TRAP_DOOR; break;
 		default:
 			break;
 		}
+
+		Entity::sanitizeImpossibleValue(hintEntities[1]);
 
 		swapHintPointer();
 		setHintBuffer();
@@ -279,12 +282,14 @@ NumEntityToPlace Cursor::placeEntity()
 		entityToPlace2 = hintEntities[1];
 		entityToPlace1.rotation = expectedRotation;
 		entityToPlace2.rotation = expectedRotation;
+		entityToPlace1.mode = expectedMode;
+		entityToPlace2.mode = expectedMode;
 
 		//Copy location and rotation of hint entity 2 to hint entity 1
 		hintEntities[0].entityCoordx = hintEntities[1].entityCoordx;
 		hintEntities[0].entityCoordy = hintEntities[1].entityCoordy;
-		hintEntities[0].rotation = hintEntities[1].rotation;
-		Entity::sanitizeImpossibleValue(&hintEntities[0]);
+		hintEntities[0].rotation = expectedRotation;
+		hintEntities[0].mode = expectedMode;
 
 		hintEntities[1].type = NONE; //Additionally, since the second hint entity is always being drawn, set the type to none to prevent drawing.
 
@@ -300,12 +305,14 @@ NumEntityToPlace Cursor::placeEntity()
 		case LOCKED_DOOR_SWITCH:
 			hintEntities[0].type = LOCKED_DOOR; break;
 		case TRAP_DOOR:
-			hintEntities[0].type = TRAO_DOOR_SWITCH; break;
-		case TRAO_DOOR_SWITCH:
+			hintEntities[0].type = TRAP_DOOR_SWITCH; break;
+		case TRAP_DOOR_SWITCH:
 			hintEntities[0].type = TRAP_DOOR; break;
 		default:
 			break;
 		}
+
+		Entity::sanitizeImpossibleValue(hintEntities[0]);
 
 		swapHintPointer();
 		setHintBuffer();
@@ -326,7 +333,7 @@ EntityData Cursor::getSecondEntityData()
 void Cursor::setHintEntityType(entityType type)
 {
 	currentHintEntity->type = type;
-	Entity::sanitizeImpossibleValue(currentHintEntity);
+	Entity::sanitizeImpossibleValue(*currentHintEntity);
 	setHintBuffer();
 }
 
@@ -334,7 +341,15 @@ void Cursor::setHintEntityRotation(EntityRotation rotation)
 {
 	expectedRotation = rotation;
 	currentHintEntity->rotation = expectedRotation;
-	Entity::sanitizeImpossibleValue(currentHintEntity);
+	Entity::sanitizeImpossibleValue(*currentHintEntity);
+	setHintBuffer();
+}
+
+void Cursor::setHintEntityMode(EntityMode mode)
+{
+	expectedMode = mode;
+	currentHintEntity->mode = expectedMode;
+	Entity::sanitizeImpossibleValue(*currentHintEntity);
 	setHintBuffer();
 }
 
@@ -343,7 +358,7 @@ void Cursor::resetHintEntity()
 	hintEntities[0].type = NONE;
 	hintEntities[1].type = NONE;
 	currentHintEntity = &hintEntities[0];
-	Entity::sanitizeImpossibleValue(currentHintEntity);
+	Entity::sanitizeImpossibleValue(*currentHintEntity);
 }
 
 void Cursor::swapHintPointer()
@@ -357,7 +372,8 @@ void Cursor::swapHintPointer()
 		currentHintEntity = &hintEntities[0];
 	}
 	currentHintEntity->rotation = expectedRotation;
-	Entity::sanitizeImpossibleValue(currentHintEntity);
+	currentHintEntity->mode = expectedMode;
+	Entity::sanitizeImpossibleValue(*currentHintEntity);
 }
 
 void Cursor::setHintBuffer()
@@ -408,13 +424,17 @@ void Cursor::drawHintEntity(glm::mat4 viewProjMtx)
 	glEnableVertexAttribArray(entityRotationLoc);
 	glVertexAttribIPointer(entityRotationLoc, 1, GL_INT, sizeof(EntityData), (void*)(3 * sizeof(int)));
 
-	uint entityColorLoc = 3;
-	glEnableVertexAttribArray(entityColorLoc);
-	glVertexAttribPointer(entityColorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(EntityData), (void*)(4 * sizeof(int)));
+	uint entityModeLoc = 3;
+	glEnableVertexAttribArray(entityModeLoc);
+	glVertexAttribIPointer(entityModeLoc, 1, GL_INT, sizeof(EntityData), (void*)(4 * sizeof(int)));
 
-	uint entityHighlightLoc = 4;
+	uint entityColorLoc = 4;
+	glEnableVertexAttribArray(entityColorLoc);
+	glVertexAttribPointer(entityColorLoc, 3, GL_FLOAT, GL_FALSE, sizeof(EntityData), (void*)(5 * sizeof(int)));
+
+	uint entityHighlightLoc = 5;
 	glEnableVertexAttribArray(entityHighlightLoc);
-	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(EntityData), (void*)(4 * sizeof(int) + 3 * sizeof(float)));
+	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(EntityData), (void*)(5 * sizeof(int) + 3 * sizeof(float)));
 
 	glDrawArrays(GL_POINTS, 0, hintEntities.size()); //Use GL_POINTS because every "point" is 1 EntityData.
 
