@@ -216,7 +216,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			if (!leftDown)
 			{
 				this->resetStates();
-				levelPaser.loadLevel("Untitled-1", tiles, entities);
+				levelParser.loadLevel("Untitled-1", tiles, entities);
 			}
 		}
 
@@ -225,7 +225,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			if (!leftDown)
 			{
 				this->resetStates();
-				levelPaser.saveLevel("Untitled-1", tiles, entities);
+				levelParser.saveLevel("Untitled-1", tiles, entities);
 			}
 		}
 

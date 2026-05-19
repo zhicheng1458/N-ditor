@@ -117,7 +117,7 @@ private:
 	//Cursor
 	Cursor mouse = Cursor(gridSpacing, palette);
 
-	LevelParser levelPaser; //Include stream, so it cannot be copy constructed
+	LevelParser levelParser; //Include stream, so it cannot be copy constructed
 
 	//Toggle for tile-editing mode vs entity-editing mode;
 	editingMode currentEditingMode = TILE_EDITING_MODE;
