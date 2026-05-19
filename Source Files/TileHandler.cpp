@@ -27,6 +27,21 @@ TileHandler::~TileHandler()
 	delete tileTree;
 }
 
+void TileHandler::clearData()
+{
+	for (int i = 0; i < tileDatas.size(); i++)
+	{
+		delete tileDatas[i];
+		tileDatas[i] = nullptr;
+	}
+	tileDatas.clear();
+
+	clearBuffers();
+	setBuffers();
+	clearVolatileBuffers();
+	setVolatileBuffers();
+}
+
 void TileHandler::usePalette(const Palette& p)
 {
 	palette = &p;
@@ -364,6 +379,13 @@ void TileHandler::invertSelected()
 
 ///////////////////////////////////////////////////////////////////////
 
+const std::vector<TileData*>& TileHandler::getTileData() const
+{
+	return tileDatas;
+}
+
+///////////////////////////////////////////////////////////////////////
+
 void TileHandler::drawTiles(glm::mat4 viewProjMtx, const uint tileBuffer, GLsizei tileBufferSize)
 {
 	//Custom shader is needed specifically for tiles
@@ -508,7 +530,7 @@ void TileHandler::flipTileHorizontally(TileData& tile, int xMinBoundary, int xMa
 
 	switch (tile.type)
 	{
-		case HALF:
+		case HALF: case BORDER_TELEPORT:
 		{
 			if (tile.rotation == TILE_DEGREE_0) { tile.rotation = TILE_DEGREE_180; }
 			else if (tile.rotation == TILE_DEGREE_180) { tile.rotation = TILE_DEGREE_0; }
@@ -530,7 +552,7 @@ void TileHandler::flipTileVertically(TileData& tile, int yMinBoundary, int yMaxB
 
 	switch (tile.type)
 	{
-		case HALF:
+		case HALF: case BORDER_TELEPORT:
 		{
 			if (tile.rotation == TILE_DEGREE_90) { tile.rotation = TILE_DEGREE_270; }
 			else if (tile.rotation == TILE_DEGREE_270) { tile.rotation = TILE_DEGREE_90; }

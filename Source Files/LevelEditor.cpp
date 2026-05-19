@@ -206,17 +206,27 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 		if (key == GLFW_KEY_SLASH) { drawFineGrid = !drawFineGrid; return; } //Toggle fine grid drawing.
 		if (key == GLFW_KEY_ESCAPE)
 		{
-			currentEditingMode = TILE_EDITING_MODE;
-			mouse.setCursorType(TILE_CURSOR);
-			mouse.clearSelectionRegionBuffer();
-			hasRegionSelected = false;
-			mouse.setFollowMouse(false);
-			entities.stopHighlight();
-			entities.unstageSelected();
-			entities.setHintToFollowMouse(false);
-			tiles.unstageSelected();
-			tiles.setHintToFollowMouse(false);
+			this->resetStates();
 			return;
+		}
+
+		//Testing function
+		if (key == GLFW_KEY_L)
+		{
+			if (!leftDown)
+			{
+				this->resetStates();
+				levelPaser.loadLevel("Untitled-1", tiles, entities);
+			}
+		}
+
+		if (key == GLFW_KEY_P)
+		{
+			if (!leftDown)
+			{
+				this->resetStates();
+				levelPaser.saveLevel("Untitled-1", tiles, entities);
+			}
 		}
 
 		//int display_w, display_h;
@@ -332,7 +342,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						//lastClosestEntity = findClosestEntity(newEntityCoordinate, 5);
 						//entities.resolveHighlight(lastClosestEntity, nullptr);
 						break;
-					case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4: case GLFW_KEY_5: case GLFW_KEY_6: case GLFW_KEY_7: case GLFW_KEY_8:
+					case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4: case GLFW_KEY_5: case GLFW_KEY_6: case GLFW_KEY_7: case GLFW_KEY_8: case GLFW_KEY_9:
 						this->setTileTypeKeyModifier(key);
 						break;
 					case GLFW_KEY_E:
@@ -925,6 +935,9 @@ void LevelEditor::setTileTypeKeyModifier(int key)
 	case GLFW_KEY_8:
 		currentTileType = CURVE_OUT;
 		break;
+	case GLFW_KEY_9:
+		currentTileType = BORDER_TELEPORT;
+		break;
 	default:
 		currentTileType = SLOPE_45DEG; //Default in editor is 45 deg tile
 		break;
@@ -984,4 +997,18 @@ glm::vec2 LevelEditor::calculateMouseModelCoord(GLFWwindow* window, double mouse
 		glm::vec2((float)mouseX, (float)mouseY),
 		(float)display_w, (float)display_h,
 		viewpoint->getViewMtx(), viewpoint->getProjectionMtx(), levelRegionModelMtx);
+}
+
+void LevelEditor::resetStates()
+{
+	currentEditingMode = TILE_EDITING_MODE;
+	mouse.setCursorType(TILE_CURSOR);
+	mouse.clearSelectionRegionBuffer();
+	hasRegionSelected = false;
+	mouse.setFollowMouse(false);
+	entities.stopHighlight();
+	entities.unstageSelected();
+	entities.setHintToFollowMouse(false);
+	tiles.unstageSelected();
+	tiles.setHintToFollowMouse(false);
 }

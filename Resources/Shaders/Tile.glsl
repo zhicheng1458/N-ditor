@@ -38,7 +38,7 @@ void main()
 #ifdef GEOMETRY_SHADER
 
 layout (points) in;
-layout (triangle_strip, max_vertices = 6) out;
+layout (triangle_strip, max_vertices = 9) out;
 
 in TILE_DATA_OUT {
 	int tileType;
@@ -321,6 +321,52 @@ void generateTile()
 		EmitVertex();
 		shadingData.fragPosition = bottomLeft.xy;
 		gl_Position = mvp * bottomLeft;
+		EmitVertex();
+		EndPrimitive();
+	}
+
+	//Border Tile, aka 22-25
+	if(tileData[0].tileType == 9)
+	{
+		vec4 topLeftInner = vec4(tileSize * -0.4, tileSize * 0.5, 0.0, 1.0);
+		vec4 bottomLeftInner = vec4(tileSize * -0.4, tileSize * -0.5, 0.0, 1.0);
+		vec4 leftCenter = vec4(tileSize * -0.25, 0.0, 0.0, 1.0);
+		vec4 quarterTopRight = vec4(tileSize * 0.25, tileSize * 0.25, 0.0, 1.0);
+		vec4 quarterBottomRight = vec4(tileSize * 0.25, tileSize * -0.25, 0.0, 1.0);
+
+		//Triangle 1
+		shadingData.fragPosition = topLeftInner.xy;
+		gl_Position = mvp * topLeftInner;
+		EmitVertex();
+		shadingData.fragPosition = topLeft.xy;
+		gl_Position = mvp * topLeft;
+		EmitVertex();
+		shadingData.fragPosition = bottomLeft.xy;
+		gl_Position = mvp * bottomLeft;
+		EmitVertex();
+		EndPrimitive();
+
+		//Triangle 2
+		shadingData.fragPosition = topLeftInner.xy;
+		gl_Position = mvp * topLeftInner;
+		EmitVertex();
+		shadingData.fragPosition = bottomLeft.xy;
+		gl_Position = mvp * bottomLeft;
+		EmitVertex();
+		shadingData.fragPosition = bottomLeftInner.xy;
+		gl_Position = mvp * bottomLeftInner;
+		EmitVertex();
+		EndPrimitive();
+
+		//Triangle 3
+		shadingData.fragPosition = quarterTopRight.xy;
+		gl_Position = mvp * quarterTopRight;
+		EmitVertex();
+		shadingData.fragPosition = leftCenter.xy;
+		gl_Position = mvp * leftCenter;
+		EmitVertex();
+		shadingData.fragPosition = quarterBottomRight.xy;
+		gl_Position = mvp * quarterBottomRight;
 		EmitVertex();
 		EndPrimitive();
 	}

@@ -46,6 +46,22 @@ EntityHandler::~EntityHandler()
 	glDeleteBuffers(1, &volatileEntityConnectorBuffer);
 }
 
+void EntityHandler::clearData()
+{
+	for (int i = 0; i < entityDatas.size(); i++)
+	{
+		delete entityDatas[i];
+		entityDatas[i] = nullptr;
+	}
+	entityDatas.clear();
+	entityConnections.clear();
+
+	clearStaticBuffers();
+	setStaticBuffers();
+	clearVolatileBuffers();
+	setVolatileBuffers();
+}
+
 void EntityHandler::usePalette(const Palette& p)
 {
 	palette = &p;
@@ -513,6 +529,23 @@ void EntityHandler::rotateSelectedCounterClockwise()
 	setVolatileBuffers();
 }
 
+void EntityHandler::sortEntityListByType()
+{
+	std::sort(entityDatas.begin(), entityDatas.end(), [](EntityData* e1, EntityData* e2) {
+		return (int)(e1->type) < (int)(e2->type);
+	});
+}
+
+const std::vector<EntityData*>& EntityHandler::getEntityData() const
+{
+	return entityDatas;
+}
+
+const std::vector<EntityConnector>& EntityHandler::getEntityConnectorData() const
+{
+	return entityConnections;
+}
+
 ///////////////////////////////////////////////////////////////////////
 
 void EntityHandler::update()
@@ -943,3 +976,10 @@ void EntityHandler::rotateEntityCounterClockwise(EntityData & entity, const glm:
 	//TODO: Perform sanity check
 	Entity::sanitizeImpossibleValue(entity);
 }
+
+/*
+bool EntityHandler::sortByType(EntityData * e1, EntityData * e2)
+{
+	return (int)(e1->type) < (int)(e2->type);
+}
+*/

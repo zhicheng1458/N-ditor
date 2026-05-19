@@ -13,6 +13,7 @@ class TileHandler
 public:
 	TileHandler(float tileSize, const Palette& p);
 	~TileHandler();
+	void clearData();
 
 	void usePalette(const Palette& p);
 
@@ -40,6 +41,8 @@ public:
 	void rotateSelectedClockwise();
 	void rotateSelectedCounterClockwise();
 	void invertSelected();
+
+	const std::vector<TileData*> & getTileData() const;
 
 private:
 

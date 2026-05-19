@@ -8,6 +8,8 @@
 #include "Entity.h"
 #include "UtilityFunctions.h"
 
+#include <algorithm>
+
 /*
 struct EntityDataAdaptor
 {
@@ -41,6 +43,7 @@ class EntityHandler
 public:
 	EntityHandler(float tileSize, const Palette& p);
 	~EntityHandler();
+	void clearData();
 
 	void usePalette(const Palette& p);
 
@@ -72,6 +75,10 @@ public:
 	void flipSelectedVertically();
 	void rotateSelectedClockwise();
 	void rotateSelectedCounterClockwise();
+
+	void sortEntityListByType();
+	const std::vector<EntityData*>& getEntityData() const;
+	const std::vector<EntityConnector>& getEntityConnectorData() const;
 
 	void update();
 	void draw(glm::mat4 viewProjMtx);
@@ -122,4 +129,6 @@ private:
 	void flipEntityVertically(EntityData & entity, int yMinBoundary, int yMaxBoundary);
 	void rotateEntityClockwise(EntityData & entity, const glm::ivec2 & pivot);
 	void rotateEntityCounterClockwise(EntityData & entity, const glm::ivec2 & pivot);
+
+	//bool sortByType(EntityData * e1, EntityData * e2);
 };

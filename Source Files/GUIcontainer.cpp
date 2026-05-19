@@ -172,6 +172,16 @@ void GUIcontainer::keyboard(GLFWwindow * window, int key, int scancode, int acti
 						debugWindow.addMessage(m);
 					}
 					break;
+				case GLFW_KEY_9:
+					if (DEBUG)
+					{
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Tile modifier (code): %1i", BORDER_TELEPORT);
+						m.message = tempString;
+						m.color = NEUTRAL_COLOR;
+						debugWindow.addMessage(m);
+					}
+					break;
 				case GLFW_KEY_E:
 					if (DEBUG)
 					{

@@ -143,6 +143,7 @@
     <ClInclude Include="Header Files\GUIcontainer.h" />
     <ClInclude Include="Header Files\EntityHandler.h" />
     <ClInclude Include="Header Files\LevelEditor.h" />
+    <ClInclude Include="Header Files\LevelParser.h" />
     <ClInclude Include="Header Files\MainProgram.h" />
     <ClInclude Include="Header Files\imconfig.h" />
     <ClInclude Include="Header Files\imgui.h" />
@@ -178,6 +179,7 @@
     <ClCompile Include="Source Files\imgui_tables.cpp" />
     <ClCompile Include="Source Files\imgui_widgets.cpp" />
     <ClCompile Include="Source Files\LevelEditor.cpp" />
+    <ClCompile Include="Source Files\LevelParser.cpp" />
     <ClCompile Include="Source Files\MainProgram.cpp" />
     <ClCompile Include="Source Files\Model.cpp" />
     <ClCompile Include="Source Files\Palette.cpp" />

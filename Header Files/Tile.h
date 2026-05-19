@@ -13,7 +13,8 @@ enum TileType
 	HALF = 5,
 	LARGESLOPE_RIGHT_60DEG = 6,
 	LARGESLOPE_LEFT_60DEG = 7,
-	CURVE_OUT = 8
+	CURVE_OUT = 8,
+	BORDER_TELEPORT = 9
 };
 
 //In actual editor, the tile is rotated CLOCKWISE;

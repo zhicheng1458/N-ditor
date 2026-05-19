@@ -13,6 +13,8 @@
 #include "EditorOverlay.h"
 #include "Cursor.h"
 
+#include "LevelParser.h"
+
 enum editingMode
 {
 	TILE_EDITING_MODE = 0,
@@ -92,7 +94,7 @@ private:
 	Model * levelRegion;
 	ShaderProgram * levelRegionShader;
 	const float playableRegionLineWidth = gridSpacing * 42.0f; //The playable region is 42 tiles wide
-	const float playableRegionLineHeight = gridSpacing * 27.0f; //The playable region is 27 tiles high
+	const float playableRegionLineHeight = gridSpacing * 23.0f; //The playable region is 27 tiles high
 	const float playableRegionLineThickness = 4.0f;
 	const glm::vec4 playableRegionLineColor = glm::vec4(0.0f, 1.0f, 1.0f, 1.0f);
 	const float entityPlaceableRegionLineWidth = gridSpacing * 0.25f * 255.0f; //The placeable region for entities is 64 tiles - 1 quartertile wide
@@ -115,6 +117,8 @@ private:
 	//Cursor
 	Cursor mouse = Cursor(gridSpacing, palette);
 
+	LevelParser levelPaser; //Include stream, so it cannot be copy constructed
+
 	//Toggle for tile-editing mode vs entity-editing mode;
 	editingMode currentEditingMode = TILE_EDITING_MODE;
 
@@ -135,5 +139,6 @@ private:
 	bool keyStates[GLFW_KEY_LAST + 1];
 
 	void init();
+	void resetStates();
 	glm::vec2 calculateMouseModelCoord(GLFWwindow* window, double mouseX, double mouseY);
 };
