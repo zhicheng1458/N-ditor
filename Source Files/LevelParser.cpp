@@ -288,7 +288,8 @@ bool LevelParser::loadTiles(TileHandler& tileHandler)
 
 			t.color = glm::vec3(0.5f); //Dummy color for now, palette will take care of the rest
 
-			tileHandler.addTile(t);
+			Modification placeHolder;
+			tileHandler.addTile(t, placeHolder);
 		}
 		else
 		{

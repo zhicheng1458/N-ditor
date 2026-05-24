@@ -25,6 +25,7 @@ TileHandler::~TileHandler()
 	glDeleteBuffers(1, &volatileTileDataBuffer);
 
 	delete tileTree;
+
 }
 
 void TileHandler::clearData()
@@ -54,27 +55,49 @@ void TileHandler::usePalette(const Palette& p)
 	setBuffers();
 }
 
-void TileHandler::addTile(TileData data)
+void TileHandler::addTile(TileData data, Modification& recorder)
 {
 	// Old no tree implementation
 	clearBuffers();
+
+	if (data.type == EMPTY) { data.rotation = TILE_DEGREE_0; } //Quick sanity check in case of empty data supplied
+
 	bool found = false;
 	for (int i = 0; i < tileDatas.size(); i++)
 	{
 		if (tileDatas[i]->tileCoordx == data.tileCoordx && tileDatas[i]->tileCoordy == data.tileCoordy)
 		{
-			tileDatas[i]->rotation = data.rotation;
-			tileDatas[i]->type = data.type;
+			//If the tile being added is the exact same, then the tile adding step will be skipped
+			//(to prevent accidental misclick for save operation)
+			if (tileDatas[i]->rotation != data.rotation || tileDatas[i]->type != data.type)
+			{
+				//Record the tile that gets changed
+				recorder.oldTiles.push_back(*tileDatas[i]);
+
+				tileDatas[i]->rotation = data.rotation;
+				tileDatas[i]->type = data.type;
+
+				recorder.newTiles.push_back(*tileDatas[i]);
+			}
 			found = true;
 			break;
 		}
 	}
 	if (!found)
 	{
-		TileData* tile = new TileData(data);
-		tile->color = palette->backgroundColors.tileColor / 255.0f;
+		//If it is attempting to add an empty tile to a location where tile doesn't exist yet, skip this step.
+		//(to prevent accidental misclick for save operation)
+		if (data.type != EMPTY)
+		{
+			TileData* tile = new TileData(data);
+			tile->color = palette->backgroundColors.tileColor / 255.0f;
 
-		tileDatas.push_back(tile);
+			tileDatas.push_back(tile);
+			//Record the tile that gets changed. This is equivalent to changing an empty tile to a valid tile.
+			data.type = EMPTY;
+			recorder.oldTiles.push_back(data);
+			recorder.newTiles.push_back(*tile);
+		}
 	}
 	setBuffers();
 
@@ -107,13 +130,20 @@ void TileHandler::addTile(TileData data)
 	*/
 }
 
-void TileHandler::deleteTile(TileData data)
+/*
+void TileHandler::deleteTile(TileData data, Modification & recorder)
 {
 	clearBuffers();
 	for (int i = 0; i < tileDatas.size(); i++)
 	{
 		if (isSameCoord(*tileDatas[i], data.tileCoordx, data.tileCoordy))
 		{
+			//Record the tile that gets changed
+			if (tileDatas[i]->type != EMPTY)
+			{
+				recorder.tiles.push_back(*tileDatas[i]);
+			}
+
 			delete tileDatas[i];
 			tileDatas[i] = nullptr;
 			tileDatas.erase(tileDatas.begin() + i);
@@ -122,6 +152,7 @@ void TileHandler::deleteTile(TileData data)
 	}
 	setBuffers();
 }
+*/
 
 void TileHandler::draw(glm::mat4 viewProjMtx)
 {
@@ -197,6 +228,41 @@ void TileHandler::stageSelected()
 		}
 	}
 
+	//Fill all coordinate that didn't have a tile in it with an empty tile
+	int row = (selectRegionMaxBoundary.y - selectRegionMinBoundary.y + 1); //also the height
+	int col = (selectRegionMaxBoundary.x - selectRegionMinBoundary.x + 1); //also the width
+	int size = row * col;
+
+	if (volatileTileData.size() != size)
+	{
+		std::vector<bool> hasTile(size);
+		for (int i = 0; i < hasTile.size(); i++)
+		{
+			hasTile[i] = false;
+		}
+
+		//Order goes for row first then column
+		for (int i = 0; i < volatileTileData.size(); i++)
+		{
+			int index = (volatileTileData[i]->tileCoordy - selectRegionMinBoundary.y) * col + (volatileTileData[i]->tileCoordx - selectRegionMinBoundary.x);
+			hasTile[index] = true;
+		}
+
+		for (int i = 0; i < hasTile.size(); i++)
+		{
+			if (!hasTile[i])
+			{
+				TileData* emptyTile = new TileData();
+				emptyTile->tileCoordx = i % col + selectRegionMinBoundary.x;
+				emptyTile->tileCoordy = i / col + selectRegionMinBoundary.y;
+				emptyTile->type = EMPTY;
+				emptyTile->color = selectedTileColor;
+
+				volatileTileData.push_back(emptyTile);
+			}
+		}
+	}
+
 	setVolatileBuffers();
 }
 
@@ -205,20 +271,17 @@ void TileHandler::unstageSelected()
 	clearVolatileBuffers();
 }
 
-void TileHandler::pasteSelected()
+void TileHandler::pasteSelected(Modification& recorder)
 {
-	//Clear the whole region of where it would be pasted
-	deleteSelectedTileCoordBased(selectRegionMinBoundary, selectRegionMaxBoundary);
-
 	for (int i = 0; i < volatileTileData.size(); i++)
 	{
-		addTile(*volatileTileData[i]);
+		addTile(*volatileTileData[i], recorder);
 	}
 }
 
-void TileHandler::fillSelected()
+void TileHandler::fillSelected(Modification& recorder)
 {
-	deleteSelectedTileCoordBased(selectRegionMinBoundary, selectRegionMaxBoundary);
+	//addtile method has sanity check to ensure no stacked tile.
 
 	TileData t;
 	t.rotation = TILE_DEGREE_0;
@@ -230,16 +293,16 @@ void TileHandler::fillSelected()
 			t.tileCoordy = c;
 			t.type = FULL;
 
-			addTile(t);
+			addTile(t, recorder);
 		}
 	}
 
 	setBuffers();
 }
 
-void TileHandler::deleteSelected()
+void TileHandler::deleteSelected(Modification& recorder)
 {
-	deleteSelectedTileCoordBased(selectRegionMinBoundary, selectRegionMaxBoundary);
+	deleteSelectedTileCoordBased(selectRegionMinBoundary, selectRegionMaxBoundary, recorder);
 	setBuffers();
 }
 
@@ -248,10 +311,10 @@ void TileHandler::copySelected()
 	stageSelected();
 }
 
-void TileHandler::cutSelected()
+void TileHandler::cutSelected(Modification& recorder)
 {
 	stageSelected();
-	deleteSelected();
+	deleteSelected(recorder);
 }
 
 void TileHandler::flipSelectedHorizontally()
@@ -332,6 +395,7 @@ void TileHandler::rotateSelectedCounterClockwise()
 
 void TileHandler::invertSelected()
 {
+	/*
 	int row = (selectRegionMaxBoundary.y - selectRegionMinBoundary.y + 1); //also the height
 	int col = (selectRegionMaxBoundary.x - selectRegionMinBoundary.x + 1); //also the width
 	int size = row * col;
@@ -368,6 +432,7 @@ void TileHandler::invertSelected()
 			}
 		}
 	}
+	*/
 
 	for (int i = 0; i < volatileTileData.size(); i++)
 	{
@@ -496,7 +561,7 @@ void TileHandler::clearVolatileBuffers()
 	volatileTileData.clear();
 }
 
-void TileHandler::deleteSelectedTileCoordBased(glm::ivec2 corner1, glm::ivec2 corner2)
+void TileHandler::deleteSelectedTileCoordBased(glm::ivec2 corner1, glm::ivec2 corner2, Modification& recorder) //Tile modified
 {
 	int minX = std::min(corner1.x, corner2.x);
 	int maxX = std::max(corner1.x, corner2.x);
@@ -506,18 +571,41 @@ void TileHandler::deleteSelectedTileCoordBased(glm::ivec2 corner1, glm::ivec2 co
 	glm::ivec2 topLeft = glm::ivec2(minX, minY);
 	glm::ivec2 bottomRight = glm::ivec2(maxX, maxY);
 
+	/*
 	std::vector<TileData*>::iterator tileItr = tileDatas.begin();
 	while(tileItr != tileDatas.end())
 	{
 		if (!((*tileItr)->tileCoordx < topLeft.x || (*tileItr)->tileCoordx > bottomRight.x ||
 			  (*tileItr)->tileCoordy < topLeft.y || (*tileItr)->tileCoordy > bottomRight.y))
 		{
+			//Record the tile that gets changed
+			if ((*tileItr)->type != EMPTY)
+			{
+				recorder.tiles.push_back(**tileItr);
+			}
+
 			delete (*tileItr);
 			tileItr = tileDatas.erase(tileItr);
 		}
 		else
 		{
 			tileItr++;
+		}
+	}
+	*/
+
+	//Lazy delete method
+	TileData t;
+	t.type = EMPTY;
+	t.rotation = TILE_DEGREE_0;
+	for (int i = 0; i < tileDatas.size(); i++)
+	{
+		if (!(tileDatas[i]->tileCoordx < topLeft.x || tileDatas[i]->tileCoordx > bottomRight.x ||
+			  tileDatas[i]->tileCoordy < topLeft.y || tileDatas[i]->tileCoordy > bottomRight.y))
+		{
+			t.tileCoordx = tileDatas[i]->tileCoordx;
+			t.tileCoordy = tileDatas[i]->tileCoordy;
+			addTile(t, recorder);
 		}
 	}
 

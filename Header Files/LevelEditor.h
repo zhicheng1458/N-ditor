@@ -14,6 +14,7 @@
 #include "Cursor.h"
 
 #include "LevelParser.h"
+#include "ActionRecorder.h"
 
 enum editingMode
 {
@@ -116,6 +117,10 @@ private:
 
 	//Cursor
 	Cursor mouse = Cursor(gridSpacing, palette);
+
+	//Undo/Redo
+	ActionRecorder recorder = ActionRecorder();
+	Modification tileChanges;
 
 	LevelParser levelParser; //Include stream, so it cannot be copy constructed
 

@@ -134,6 +134,20 @@ void LevelEditor::init()
 	levelRegion->addLine(v2 + offsetv2vertical, entityPlaceableRegionLineColor, v4 + offsetv4vertical, entityPlaceableRegionLineColor, entityPlaceableRegionLineThickness);
 	levelRegion->addLine(v3 + offsetv3horizontal, entityPlaceableRegionLineColor, v4 + offsetv4horizontal, entityPlaceableRegionLineColor, entityPlaceableRegionLineThickness);
 	levelRegion->setBuffers();
+
+	/*
+	std::vector<TileData> tData(1);
+	std::vector<EntityData> eData(1);
+	tData[0].tileCoordx = 5;
+	tData[0].tileCoordy = 10;
+	tData[0].rotation = TILE_DEGREE_0;
+	tData[0].type = FULL;
+	recorder.newAction(tData, eData, Action::NO_ACTION);
+	std::vector<TileData> ttest;
+	std::vector<EntityData> etest;
+	bool result = recorder.getPreviousAction(ttest, etest);
+	*/
+	tileChanges.action = ACTION_CHANGE;
 }
 
 LevelEditor::~LevelEditor()
@@ -238,6 +252,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 		glm::vec2 mouseCoordinate = calculateMouseModelCoord(window, MouseX, MouseY);
 		glm::ivec2 tileCoordinate = UtilityFunctions::clampToNearestTileCoord(mouseCoordinate, gridSpacing);
 		glm::ivec2 newEntityCoordinate = UtilityFunctions::clampToNearestPlaceableEntityCoord(mouseCoordinate, gridSpacing);
+
 
 		switch (currentEditingMode)
 		{
@@ -347,10 +362,17 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						break;
 					case GLFW_KEY_E:
 					{
+						//tileChanges.action = ACTION_ADD;
 						if (hasRegionSelected)
 						{
-							//TODO: Fill region with full tile
-							tiles.fillSelected();
+							tiles.fillSelected(tileChanges);
+							if (!tileChanges.newTiles.empty())
+							{
+								recorder.newAction(tileChanges);
+							}
+							//tileChanges.action = NO_ACTION;
+							tileChanges.oldTiles.clear();
+							tileChanges.newTiles.clear();
 						}
 						else
 						{
@@ -360,17 +382,24 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							tile.tileCoordx = tileCoordinate.x;
 							tile.tileCoordy = tileCoordinate.y;
 							tile.type = FULL;
-							tiles.addTile(tile);
+							tiles.addTile(tile, tileChanges);
 						}
 
 						break;
 					}
 					case GLFW_KEY_D:
 					{
+						//tileChanges.action = ACTION_DELETE;
 						if (hasRegionSelected)
 						{
-							//TODO: Delete region (aka fill region with empty tile)
-							tiles.deleteSelected();
+							tiles.deleteSelected(tileChanges);
+							if (!tileChanges.newTiles.empty())
+							{
+								recorder.newAction(tileChanges);
+							}
+							//tileChanges.action = NO_ACTION;
+							tileChanges.oldTiles.clear();
+							tileChanges.newTiles.clear();
 						}
 						else
 						{
@@ -380,12 +409,13 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							tile.tileCoordx = tileCoordinate.x;
 							tile.tileCoordy = tileCoordinate.y;
 							tile.type = EMPTY;
-							tiles.addTile(tile);
+							tiles.addTile(tile, tileChanges);
 						}
 						break;
 					}
 					case GLFW_KEY_Q: case GLFW_KEY_W: case GLFW_KEY_S: case GLFW_KEY_A:
 					{
+						//tileChanges.action = ACTION_ADD;
 						if (!hasRegionSelected) //If there is a selected region, no tile may be placed individually
 						{
 							this->setTileRotationKeyModifier(key);
@@ -395,7 +425,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							tile.tileCoordx = tileCoordinate.x;
 							tile.tileCoordy = tileCoordinate.y;
 							tile.type = this->getTileTypeKeyModifier();
-							tiles.addTile(tile);
+							tiles.addTile(tile, tileChanges);
 						}
 						break;
 					}
@@ -416,6 +446,8 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						}
 						break;
 					case GLFW_KEY_X:
+					{
+						Modification cut;
 						if (!leftDown)
 						{
 							currentEditingMode = REGION_EDITING_MODE;
@@ -426,11 +458,17 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							entities.cutSelected();
 							entities.setHintToFollowMouse(true);
 							entities.moveHint(mouseCoordinate);
-							tiles.cutSelected();
+							tiles.cutSelected(cut);
 							tiles.setHintToFollowMouse(true);
 							tiles.moveHint(mouseCoordinate);
 						}
+
+						if (!cut.newTiles.empty())
+						{
+							recorder.newAction(cut);
+						}
 						break;
+					}
 					case GLFW_KEY_SPACE:
 						overlay.showTray();
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
@@ -579,16 +617,35 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 	{
 		keyStates[key] = false;
 
-		switch (key)
+		if (key == GLFW_KEY_SPACE)
 		{
-			case GLFW_KEY_SPACE:
-				overlay.hideTray();
-				break;
-			default:
+			overlay.hideTray();
+		}
+
+		switch (currentEditingMode)
+		{
+			case TILE_EDITING_MODE:
 			{
-				//Do something when that key is pressed
+				switch (key)
+				{
+					case GLFW_KEY_Q: case GLFW_KEY_W: case GLFW_KEY_S: case GLFW_KEY_A: case GLFW_KEY_E: case GLFW_KEY_D:
+					{
+						if (!tileChanges.newTiles.empty())
+						{
+							recorder.newAction(tileChanges);
+						}
+						//tileChanges.action = NO_ACTION;
+						tileChanges.oldTiles.clear();
+						tileChanges.newTiles.clear();
+						break;
+					}
+					default:
+						break;
+				}
 				break;
 			}
+			default:
+				break;
 		}
 	}
 }
@@ -639,9 +696,17 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 				mouse.buildSelectionRegionBuffer(newCoord, newCoord, true, true);
 				break;
 			case REGION_EDITING_MODE:
+			{
+				Modification paste;
+			
 				entities.pasteSelected();
-				tiles.pasteSelected();
+				tiles.pasteSelected(paste);
+				if (!paste.oldTiles.empty() || !paste.newTiles.empty())
+				{
+					recorder.newAction(paste);
+				}
 				break;
+			}
 			default:
 				break;
 			}
@@ -794,7 +859,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						fulltile.tileCoordy = newTileCoordinate.y;
 						fulltile.type = FULL;
 
-						tiles.addTile(fulltile);
+						tiles.addTile(fulltile, tileChanges);
 					}
 				}
 				else if (keyStates[GLFW_KEY_D])
@@ -807,7 +872,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						emptyTile.tileCoordy = newTileCoordinate.y;
 						emptyTile.type = EMPTY;
 
-						tiles.addTile(emptyTile);
+						tiles.addTile(emptyTile, tileChanges);
 					}
 				}
 				else if (keyStates[GLFW_KEY_Q])
@@ -820,7 +885,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						tile.tileCoordy = newTileCoordinate.y;
 						tile.type = this->getTileTypeKeyModifier();
 
-						tiles.addTile(tile);
+						tiles.addTile(tile, tileChanges);
 					}
 				}
 				else if (keyStates[GLFW_KEY_W])
@@ -833,7 +898,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						tile.tileCoordy = newTileCoordinate.y;
 						tile.type = this->getTileTypeKeyModifier();
 
-						tiles.addTile(tile);
+						tiles.addTile(tile, tileChanges);
 					}
 				}
 				else if (keyStates[GLFW_KEY_S])
@@ -846,7 +911,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						tile.tileCoordy = newTileCoordinate.y;
 						tile.type = this->getTileTypeKeyModifier();
 
-						tiles.addTile(tile);
+						tiles.addTile(tile, tileChanges);
 					}
 				}
 				else if (keyStates[GLFW_KEY_A])
@@ -859,7 +924,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						tile.tileCoordy = newTileCoordinate.y;
 						tile.type = this->getTileTypeKeyModifier();
 
-						tiles.addTile(tile);
+						tiles.addTile(tile, tileChanges);
 					}
 				}
 			}
@@ -1011,4 +1076,5 @@ void LevelEditor::resetStates()
 	entities.setHintToFollowMouse(false);
 	tiles.unstageSelected();
 	tiles.setHintToFollowMouse(false);
+	recorder.reset();
 }

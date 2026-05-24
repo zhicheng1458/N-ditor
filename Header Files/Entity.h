@@ -57,7 +57,7 @@ enum EntityMode
 	TURN_COUNTERCLOCKWISE_ON_COLLISION = 3,
 };
 
-struct EntityData //TODO: Include mode of the entity
+struct EntityData
 {
 	int type = NONE;
 	int entityCoordx = 0;

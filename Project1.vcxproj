@@ -135,6 +135,8 @@
   <ItemGroup>
     <ClInclude Include="Header Files\AABB.h" />
     <ClInclude Include="Header Files\AABBTree.h" />
+    <ClInclude Include="Header Files\Action.h" />
+    <ClInclude Include="Header Files\ActionRecorder.h" />
     <ClInclude Include="Header Files\Camera.h" />
     <ClInclude Include="Header Files\Core.h" />
     <ClInclude Include="Header Files\Cursor.h" />
@@ -165,6 +167,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source Files\AABBTree.cpp" />
+    <ClCompile Include="Source Files\Action.cpp" />
+    <ClCompile Include="Source Files\ActionRecorder.cpp" />
     <ClCompile Include="Source Files\Camera.cpp" />
     <ClCompile Include="Source Files\Cursor.cpp" />
     <ClCompile Include="Source Files\EditorOverlay.cpp" />

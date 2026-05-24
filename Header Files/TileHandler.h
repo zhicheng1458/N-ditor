@@ -6,6 +6,8 @@
 #include "Tile.h"
 #include "Palette.h"
 
+#include "Action.h"
+
 #include "UtilityFunctions.h"
 
 class TileHandler
@@ -17,8 +19,8 @@ public:
 
 	void usePalette(const Palette& p);
 
-	void addTile(TileData data);
-	void deleteTile(TileData data);
+	void addTile(TileData data, Modification& recorder);
+	//void deleteTile(TileData data, Modification& recorder);
 
 	//void update(); //Only matters once you have animation
 	void draw(glm::mat4 viewProjMtx);
@@ -31,11 +33,11 @@ public:
 	void setSelectedRegion(glm::vec2 corner1, glm::vec2 corner2);
 	void stageSelected();
 	void unstageSelected();
-	void pasteSelected();
-	void fillSelected();
-	void deleteSelected();
+	void pasteSelected(Modification& recorder);
+	void fillSelected(Modification& recorder);
+	void deleteSelected(Modification& recorder);
 	void copySelected();
-	void cutSelected();
+	void cutSelected(Modification& recorder);
 	void flipSelectedHorizontally();
 	void flipSelectedVertically();
 	void rotateSelectedClockwise();
@@ -80,7 +82,7 @@ private:
 	void clearVolatileBuffers();
 
 	//Which 2 corners doesn't matter as long as they are diagonal corner of each other
-	void deleteSelectedTileCoordBased(glm::ivec2 corner1, glm::ivec2 corner2);
+	void deleteSelectedTileCoordBased(glm::ivec2 corner1, glm::ivec2 corner2, Modification& recorder);
 	void flipTileHorizontally(TileData& tile, int xMinBoundary, int xMaxBoundary);
 	void flipTileVertically(TileData& tile, int yMinBoundary, int yMaxBoundary);
 	void rotateTileClockwise(TileData& tile, const glm::ivec2& pivot);
