@@ -88,29 +88,6 @@ bool Entity::isSame(const EntityData& data1, const EntityData& data2)
 					data1.rotation == data2.rotation &&
 					data1.mode == data2.mode);
 		}
-		case EXIT:
-		case EXIT_SWITCH:
-		case LOCKED_DOOR:
-		case LOCKED_DOOR_SWITCH:
-		case TRAP_DOOR:
-		case TRAP_DOOR_SWITCH:
-		{
-			if (data1.pair == nullptr) { return false; } //Invalid entity, entity creation failed somewhere....
-
-			if (data2.pair == nullptr) { return false; }
-			if (data1.type != data2.type && data1.type != data2.pair->type) { return false; }
-
-			const EntityData& matchingTypeEntity = (data1.type == data2.type) ? data2 : *(data2.pair);
-
-			return (data1.type == matchingTypeEntity.type &&
-					data1.entityCoordx == matchingTypeEntity.entityCoordx &&
-					data1.entityCoordy == matchingTypeEntity.entityCoordy &&
-					data1.rotation == matchingTypeEntity.rotation &&
-					data1.pair->type == matchingTypeEntity.pair->type &&
-					data1.pair->entityCoordx == matchingTypeEntity.pair->entityCoordx &&
-					data1.pair->entityCoordy == matchingTypeEntity.pair->entityCoordy &&
-					data1.pair->rotation == matchingTypeEntity.pair->rotation);
-		}
 		default:
 		{
 			return (data1.type == data2.type &&
@@ -120,4 +97,22 @@ bool Entity::isSame(const EntityData& data1, const EntityData& data2)
 					data1.mode == data2.mode);
 		}
 	}
+}
+
+bool Entity::isSame(const PairEntityData& data1, const PairEntityData& data2)
+{
+	if (data1.e1.type != data2.e1.type && data1.e1.type != data2.e2.type) { return false; }
+	if (data1.e2.type != data2.e1.type && data1.e2.type != data2.e2.type) { return false; }
+
+	const EntityData& e1MatchingTypeEntity = (data1.e1.type == data2.e1.type) ? data2.e1 : data2.e2;
+	const EntityData& e2MatchingTypeEntity = (data1.e2.type == data2.e1.type) ? data2.e1 : data2.e2;
+
+	return (data1.e1.type == e1MatchingTypeEntity.type &&
+			data1.e1.entityCoordx == e1MatchingTypeEntity.entityCoordx &&
+			data1.e1.entityCoordy == e1MatchingTypeEntity.entityCoordy &&
+			data1.e1.rotation == e1MatchingTypeEntity.rotation &&
+			data1.e2.type == e2MatchingTypeEntity.type &&
+			data1.e2.entityCoordx == e2MatchingTypeEntity.entityCoordx &&
+			data1.e2.entityCoordy == e2MatchingTypeEntity.entityCoordy &&
+			data1.e2.rotation == e2MatchingTypeEntity.rotation);
 }

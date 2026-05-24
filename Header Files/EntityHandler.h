@@ -56,6 +56,8 @@ public:
 
 	bool addStaticEntity(EntityData data);
 	bool addStaticEntity(EntityData data, EntityData pair);
+	void deleteSingleEntity(EntityData data);
+	void deletePairEntity(PairEntityData data);
 
 	void setHintToFollowMouse(bool toFollow);
 	void moveHint(glm::vec2 cursorInModelSpace); //cursorX and cursorY are supplied as entity coordinate at the mouse location.
@@ -76,9 +78,9 @@ public:
 	void rotateSelectedClockwise();
 	void rotateSelectedCounterClockwise();
 
-	void sortEntityListByType();
+	//void sortEntityListByType();
 	const std::vector<EntityData*>& getEntityData() const;
-	const std::vector<EntityConnector>& getEntityConnectorData() const;
+	const std::vector<PairEntityData*>& getPairEntityData() const;
 
 	void update();
 	void draw(glm::mat4 viewProjMtx);
@@ -93,10 +95,10 @@ private:
 	ShaderProgram* connectorShader;
 
 	std::vector<EntityData*> entityDatas;
-	std::vector<EntityConnector> entityConnections;
+	std::vector<PairEntityData*> pairEntityDatas;
 
 	uint entityDataBuffer;
-	uint entityConnectorBuffer;
+	uint pairEntityDataBuffer;
 	bool allowModify = false;
 
 	EntityData* lastHighlightedEntity = nullptr; //For tracking highlight
@@ -107,7 +109,7 @@ private:
 	glm::ivec2 pivotEntityLocation = glm::ivec2(0); //Entity location of the pivot
 	std::vector<EntityData*> volatileEntityStaticData; //For those selected outside of the region
 	std::vector<EntityData*> volatileEntityDynamicDatas; //For those selected within the region
-	std::vector<EntityConnector> volatileEntityConnections;
+	std::vector<PairEntityData*> volatilePairEntityDatas;
 	uint volatileEntityDataBuffer;
 	uint volatileEntityConnectorBuffer;
 
@@ -116,7 +118,7 @@ private:
 	void drawEntities(glm::mat4 viewProjMtx, const uint entityBuffer, GLsizei entityBufferSize);
 	void drawConnectors(glm::mat4 viewProjMtx, const uint connectorBuffer, GLsizei connectorBufferSize);
 
-	void deleteEntity(EntityData* data);
+	void deleteEntityByAddress(EntityData* p);
 	EntityData* findClosestEntity(const glm::vec2 entityCoord, const float radius);
 	void resolveHighlight(EntityData* entityToHighlight, EntityData* entityToUnHighlight);
 

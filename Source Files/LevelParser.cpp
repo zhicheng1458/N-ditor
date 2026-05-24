@@ -50,18 +50,21 @@ void LevelParser::saveLevel(std::string levelName, const TileHandler& tileHandle
 	 */
 
 	const std::vector<TileData> includedTiles = getIncludedTiles(tileHandler);
-	const std::vector<EntityData> includedEntity = getIncludedEntities(entityHandler);
+	const std::vector<EntityData> includedSingleEntity = getIncludedSingleEntities(entityHandler);
+	const std::vector<PairEntityData> includedPairEntity = getIncludedPairEntities(entityHandler);
 
-	for (int i = 0; i < includedEntity.size(); i++)
+	for (int i = 0; i < includedSingleEntity.size(); i++)
 	{
-		if (includedEntity[i].type == entityType::NONE)
+		if (includedSingleEntity[i].type == entityType::NONE)
 		{
 			printf("Invisible entities detected, unable to save level.");
 			return;
 		}
 	}
 
-	long int expectedFileSize = MINIMUM_LEVEL_FILE_SIZE + (long int)includedEntity.size() * NUM_BYTES_PER_ENTITY;
+	long int expectedFileSize = MINIMUM_LEVEL_FILE_SIZE +
+								(long int)includedSingleEntity.size() * NUM_BYTES_PER_ENTITY +
+								(long int)includedPairEntity.size() * 2 * NUM_BYTES_PER_ENTITY;
 
 	std::string lvlName = levelName;
 	if (levelName.length() == 0)
@@ -74,13 +77,13 @@ void LevelParser::saveLevel(std::string levelName, const TileHandler& tileHandle
 		return;
 	}
 
-	writeMagicNumberField();					//That's what it is called in the file format, idk what to say. 4 Bytes
-	writeFileLengthField(expectedFileSize);		//4 bytes
-	writeStaticDataField();						//25 Bytes, check eddy's message for layout.
-	writeLevelNameField(lvlName);				//127 bytes + 18 null bytes
-	writeTileDataField(includedTiles);			//966 bytes, 0 fill if no tile exist
-	writeObjectCountField(includedEntity);		//80 bytes, 2 bytes per entity count
-	writeEntityDataField(includedEntity);		//Varying bytes based on number of entities existed within the boundary.
+	writeMagicNumberField();											//That's what it is called in the file format, idk what to say. 4 Bytes
+	writeFileLengthField(expectedFileSize);								//4 bytes
+	writeStaticDataField();												//25 Bytes, check eddy's message for layout.
+	writeLevelNameField(lvlName);										//127 bytes + 18 null bytes
+	writeTileDataField(includedTiles);									//966 bytes, 0 fill if no tile exist
+	writeObjectCountField(includedSingleEntity, includedPairEntity);	//80 bytes, 2 bytes per entity count
+	writeEntityDataField(includedSingleEntity, includedPairEntity);		//Varying bytes based on number of entities existed within the boundary.
 
 	fileReader.flush();
 	if (!verifyFileSize())
@@ -458,38 +461,76 @@ std::vector<TileData> LevelParser::getIncludedTiles(const TileHandler& tileHandl
 	return includedTiles;
 }
 
-std::vector<EntityData> LevelParser::getIncludedEntities(const EntityHandler& entityHandler) const
+std::vector<EntityData> LevelParser::getIncludedSingleEntities(const EntityHandler& entityHandler) const
 {
 	const std::vector<EntityData*>& entityDatas = entityHandler.getEntityData();
-	const std::vector<EntityConnector>& entityConnectors = entityHandler.getEntityConnectorData(); //For getting pair entities
+	const std::vector<PairEntityData*>& pairEntityDatas = entityHandler.getPairEntityData();
 
 	std::vector<EntityData> includedEntity;
 
-	for (int i = 0; i < entityConnectors.size(); i++)
-	{
-		if (entityConnectors[i].e1->entityCoordx >= 0 && entityConnectors[i].e1->entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
-			entityConnectors[i].e1->entityCoordy >= 0 && entityConnectors[i].e1->entityCoordy < ENTITIES_MAX_Y_BOUNDARY &&
-			entityConnectors[i].e2->entityCoordx >= 0 && entityConnectors[i].e2->entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
-			entityConnectors[i].e2->entityCoordy >= 0 && entityConnectors[i].e2->entityCoordy < ENTITIES_MAX_Y_BOUNDARY)
-		{
-			includedEntity.push_back(*(entityConnectors[i].e1));
-			includedEntity.push_back(*(entityConnectors[i].e2));
-		}
-	}
-
 	for (int i = 0; i < entityDatas.size(); i++)
 	{
-		if (entityDatas[i]->pair == nullptr &&
-			entityDatas[i]->entityCoordx >= 0 && entityDatas[i]->entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
+		if (entityDatas[i]->entityCoordx >= 0 && entityDatas[i]->entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
 			entityDatas[i]->entityCoordy >= 0 && entityDatas[i]->entityCoordy < ENTITIES_MAX_Y_BOUNDARY)
 		{
 			includedEntity.push_back(*entityDatas[i]);
 		}
 	}
 
+	//exit doors are *practically* considered a single entity in the level format....
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		if (pairEntityDatas[i]->e1.entityCoordx >= 0 && pairEntityDatas[i]->e1.entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
+			pairEntityDatas[i]->e1.entityCoordy >= 0 && pairEntityDatas[i]->e1.entityCoordy < ENTITIES_MAX_Y_BOUNDARY &&
+			pairEntityDatas[i]->e2.entityCoordx >= 0 && pairEntityDatas[i]->e2.entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
+			pairEntityDatas[i]->e2.entityCoordy >= 0 && pairEntityDatas[i]->e2.entityCoordy < ENTITIES_MAX_Y_BOUNDARY)
+		{
+			EntityData e1 = pairEntityDatas[i]->e1.type < pairEntityDatas[i]->e2.type ? pairEntityDatas[i]->e1 : pairEntityDatas[i]->e2;
+			EntityData e2 = pairEntityDatas[i]->e1.type < pairEntityDatas[i]->e2.type ? pairEntityDatas[i]->e2 : pairEntityDatas[i]->e1;
+			if (e1.type == entityType::EXIT && e2.type == entityType::EXIT_SWITCH)
+			{
+				includedEntity.push_back(e1);
+				includedEntity.push_back(e2);
+			}
+		}
+	}
+
 	//Type sorting entities for faster file writing
 	std::sort(includedEntity.begin(), includedEntity.end(), [](EntityData e1, EntityData e2) {
 		return (int)(e1.type) < (int)(e2.type);
+		});
+
+	return includedEntity;
+}
+
+std::vector<PairEntityData> LevelParser::getIncludedPairEntities(const EntityHandler& entityHandler) const
+{
+	const std::vector<PairEntityData*>& pairEntityDatas = entityHandler.getPairEntityData();
+	std::vector<PairEntityData> includedEntity;
+
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		if (pairEntityDatas[i]->e1.entityCoordx >= 0 && pairEntityDatas[i]->e1.entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
+			pairEntityDatas[i]->e1.entityCoordy >= 0 && pairEntityDatas[i]->e1.entityCoordy < ENTITIES_MAX_Y_BOUNDARY &&
+			pairEntityDatas[i]->e2.entityCoordx >= 0 && pairEntityDatas[i]->e2.entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
+			pairEntityDatas[i]->e2.entityCoordy >= 0 && pairEntityDatas[i]->e2.entityCoordy < ENTITIES_MAX_Y_BOUNDARY)
+		{
+			//Need to rearrange
+			PairEntityData temp;
+			temp.e1 = pairEntityDatas[i]->e1.type < pairEntityDatas[i]->e2.type ? pairEntityDatas[i]->e1 : pairEntityDatas[i]->e2;
+			temp.e2 = pairEntityDatas[i]->e1.type < pairEntityDatas[i]->e2.type ? pairEntityDatas[i]->e2 : pairEntityDatas[i]->e1;
+			temp.highlight = pairEntityDatas[i]->highlight;
+
+			if (temp.e1.type != entityType::EXIT && temp.e2.type != entityType::EXIT_SWITCH)
+			{
+				includedEntity.push_back(temp);
+			}
+		}
+	}
+
+	//Type sorting entities for faster file writing
+	std::sort(includedEntity.begin(), includedEntity.end(), [](PairEntityData p1, PairEntityData p2) {
+		return (int)(p1.e1.type) < (int)(p2.e1.type);
 		});
 
 	return includedEntity;
@@ -605,7 +646,7 @@ bool LevelParser::writeTileDataField(const std::vector<TileData>& tileData)
 	{
 		for (int c = 0; c < NUM_TILES_PER_ROW; c++)
 		{
-			if (r == itr->tileCoordy && c == itr->tileCoordx)
+			if (itr != tileData.end() && r == itr->tileCoordy && c == itr->tileCoordx)
 			{
 				switch (itr->type)
 				{
@@ -695,7 +736,7 @@ bool LevelParser::writeTileDataField(const std::vector<TileData>& tileData)
 	return true;
 }
 
-bool LevelParser::writeObjectCountField(const std::vector<EntityData>& entityData)
+bool LevelParser::writeObjectCountField(const std::vector<EntityData>& entityData, const std::vector<PairEntityData>& pairEntityData)
 {
 	std::vector<int> countVector(NUM_ENTITY_TYPE);
 	for (int i = 0; i < countVector.size(); i++)
@@ -708,6 +749,21 @@ bool LevelParser::writeObjectCountField(const std::vector<EntityData>& entityDat
 		if (entityData[i].type >= 0 && entityData[i].type < NUM_ENTITY_TYPE)
 		{
 			countVector[entityData[i].type]++;
+		}
+		else
+		{
+			printf("Unknown entity type detected, cannot save level.");
+			return false;
+		}
+	}
+
+	for (int i = 0; i < pairEntityData.size(); i++)
+	{
+		if (pairEntityData[i].e1.type >= 0 && pairEntityData[i].e1.type < NUM_ENTITY_TYPE &&
+			pairEntityData[i].e2.type >= 0 && pairEntityData[i].e2.type < NUM_ENTITY_TYPE)
+		{
+			countVector[pairEntityData[i].e1.type]++;
+			countVector[pairEntityData[i].e2.type]++;
 		}
 		else
 		{
@@ -741,36 +797,48 @@ bool LevelParser::writeObjectCountField(const std::vector<EntityData>& entityDat
 	return true;
 }
 
-bool LevelParser::writeEntityDataField(const std::vector<EntityData>& entityData)
+bool LevelParser::writeEntityDataField(const std::vector<EntityData>& entityData, const std::vector<PairEntityData>& pairEntityData)
 {
-	for (int i = 0; i < entityData.size(); i++)
+	std::vector<EntityData>::const_iterator singleEntityItr = entityData.begin();
+	std::vector<PairEntityData>::const_iterator pairEntityItr = pairEntityData.begin();
+	for (int t = 0; t < NUM_ENTITY_TYPE; t++)
 	{
-		if (entityData[i].type == LOCKED_DOOR_SWITCH or entityData[i].type == TRAP_DOOR_SWITCH) { continue; }
+		if (t == LOCKED_DOOR_SWITCH || t == TRAP_DOOR_SWITCH) { continue; }
 
-		if (entityData[i].type == LOCKED_DOOR or entityData[i].type == TRAP_DOOR)
+		if (t == LOCKED_DOOR || t == TRAP_DOOR)
 		{
-			fileReader.put((unsigned char)(entityData[i].type));
-			fileReader.put((unsigned char)(entityData[i].entityCoordx));
-			fileReader.put((unsigned char)(entityData[i].entityCoordy));
-			int doorRotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - entityData[i].rotation) % NUM_ROTATIONS_PER_ENTITY_TYPE;
-			fileReader.put((unsigned char)doorRotation);
-			fileReader.put((unsigned char)(entityData[i].mode));
+			while (pairEntityItr != pairEntityData.end() && pairEntityItr->e1.type == t)
+			{
+				fileReader.put((unsigned char)(pairEntityItr->e1.type));
+				fileReader.put((unsigned char)(pairEntityItr->e1.entityCoordx));
+				fileReader.put((unsigned char)(pairEntityItr->e1.entityCoordy));
+				int doorRotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - pairEntityItr->e1.rotation) % NUM_ROTATIONS_PER_ENTITY_TYPE;
+				fileReader.put((unsigned char)doorRotation);
+				fileReader.put((unsigned char)(pairEntityItr->e1.mode));
 
-			fileReader.put((unsigned char)(entityData[i].pair->type));
-			fileReader.put((unsigned char)(entityData[i].pair->entityCoordx));
-			fileReader.put((unsigned char)(entityData[i].pair->entityCoordy));
-			int switchRotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - entityData[i].pair->rotation) % NUM_ROTATIONS_PER_ENTITY_TYPE;
-			fileReader.put((unsigned char)switchRotation);
-			fileReader.put((unsigned char)(entityData[i].pair->mode));
+				fileReader.put((unsigned char)(pairEntityItr->e2.type));
+				fileReader.put((unsigned char)(pairEntityItr->e2.entityCoordx));
+				fileReader.put((unsigned char)(pairEntityItr->e2.entityCoordy));
+				int switchRotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - pairEntityItr->e2.rotation) % NUM_ROTATIONS_PER_ENTITY_TYPE;
+				fileReader.put((unsigned char)switchRotation);
+				fileReader.put((unsigned char)(pairEntityItr->e2.mode));
+
+				pairEntityItr++;
+			}
 		}
 		else
 		{
-			fileReader.put((unsigned char)(entityData[i].type));
-			fileReader.put((unsigned char)(entityData[i].entityCoordx));
-			fileReader.put((unsigned char)(entityData[i].entityCoordy));
-			int rotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - entityData[i].rotation) % NUM_ROTATIONS_PER_ENTITY_TYPE;
-			fileReader.put((unsigned char)rotation);
-			fileReader.put((unsigned char)(entityData[i].mode));
+			while (singleEntityItr != entityData.end() && singleEntityItr->type == t)
+			{
+				fileReader.put((unsigned char)(singleEntityItr->type));
+				fileReader.put((unsigned char)(singleEntityItr->entityCoordx));
+				fileReader.put((unsigned char)(singleEntityItr->entityCoordy));
+				int rotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - singleEntityItr->rotation) % NUM_ROTATIONS_PER_ENTITY_TYPE;
+				fileReader.put((unsigned char)rotation);
+				fileReader.put((unsigned char)(singleEntityItr->mode));
+
+				singleEntityItr++;
+			}
 		}
 	}
 

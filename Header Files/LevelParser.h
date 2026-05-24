@@ -57,14 +57,17 @@ private:
 	bool loadEntities(EntityHandler& entityHandler);
 
 	std::vector<TileData> getIncludedTiles(const TileHandler& tileHandler) const;
-	std::vector<EntityData> getIncludedEntities(const EntityHandler& entityHandler) const;
+	std::vector<EntityData> getIncludedSingleEntities(const EntityHandler& entityHandler) const;
+	std::vector<PairEntityData> getIncludedPairEntities(const EntityHandler& entityHandler) const;
 	bool writeMagicNumberField();											//That's what it is called in the file format, idk what to say. 4 Bytes
 	bool writeFileLengthField(long int fileSize);							//4 bytes
 	bool writeStaticDataField();											//25 Bytes, check eddy's message for layout.
 	bool writeLevelNameField(std::string levelName);						//127 bytes + 18 null bytes
 	bool writeTileDataField(const std::vector<TileData> & tileData);		//966 bytes, 0 fill if no tile exist
-	bool writeObjectCountField(const std::vector<EntityData>& entityData);	//80 bytes, 2 bytes per entity count
-	bool writeEntityDataField(const std::vector<EntityData> & entityData);	//Varying bytes based on number of entities existed within the boundary.
+	bool writeObjectCountField(const std::vector<EntityData>& entityData,
+						const std::vector<PairEntityData>& pairEntityData);	//80 bytes, 2 bytes per entity count
+	bool writeEntityDataField(const std::vector<EntityData> & entityData,
+						const std::vector<PairEntityData>& pairEntityData);	//Varying bytes based on number of entities existed within the boundary.
 
 
 	bool getNextHexByteAsInt(int& v);

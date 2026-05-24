@@ -19,7 +19,7 @@ EntityHandler::EntityHandler(float tileSize, const Palette& p)
 	glUseProgram(0);
 
 	glGenBuffers(1, &entityDataBuffer);
-	glGenBuffers(1, &entityConnectorBuffer);
+	glGenBuffers(1, &pairEntityDataBuffer);
 	glGenBuffers(1, &volatileEntityDataBuffer);
 	glGenBuffers(1, &volatileEntityConnectorBuffer);
 
@@ -38,10 +38,15 @@ EntityHandler::~EntityHandler()
 		delete entityDatas[i];
 		entityDatas[i] = nullptr;
 	}
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		delete pairEntityDatas[i];
+		pairEntityDatas[i] = nullptr;
+	}
 	clearVolatileBuffers();
 
 	glDeleteBuffers(1, &entityDataBuffer);
-	glDeleteBuffers(1, &entityConnectorBuffer);
+	glDeleteBuffers(1, &pairEntityDataBuffer);
 	glDeleteBuffers(1, &volatileEntityDataBuffer);
 	glDeleteBuffers(1, &volatileEntityConnectorBuffer);
 }
@@ -53,8 +58,13 @@ void EntityHandler::clearData()
 		delete entityDatas[i];
 		entityDatas[i] = nullptr;
 	}
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		delete pairEntityDatas[i];
+		pairEntityDatas[i] = nullptr;
+	}
 	entityDatas.clear();
-	entityConnections.clear();
+	pairEntityDatas.clear();
 
 	clearStaticBuffers();
 	setStaticBuffers();
@@ -73,19 +83,20 @@ void EntityHandler::usePalette(const Palette& p)
 	glUseProgram(0);
 }
 
+//TODO: Fix searching algorithm since pair and non pair are separately stored now
 void EntityHandler::deleteClosestEntity(const glm::vec2 entityCoord, const float radius)
 {
 	EntityData* closestEntity = findClosestEntity(entityCoord, radius);
 	if (lastHighlightedEntity == closestEntity)
 	{
 		stopHighlight();
-		deleteEntity(closestEntity);
+		deleteEntityByAddress(closestEntity);
 		closestEntity = nullptr;
 		highlightClosestEntity(entityCoord, radius);
 	}
 	else
 	{
-		deleteEntity(closestEntity);
+		deleteEntityByAddress(closestEntity);
 		closestEntity = nullptr;
 	}
 }
@@ -111,7 +122,6 @@ void EntityHandler::setHighlightedEntityRotation(EntityRotation rotation)
 	if (lastHighlightedEntity == nullptr) { return; };
 	if (lastHighlightedEntity->rotation == rotation) { return; }
 	lastHighlightedEntity->rotation = rotation;
-	//TODO: Perform sanity check
 	Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
 	update();
 }
@@ -121,7 +131,6 @@ void EntityHandler::setHighlightedEntityMode(EntityMode mode)
 	if (lastHighlightedEntity == nullptr) { return; };
 	if (lastHighlightedEntity->mode == mode) { return; }
 	lastHighlightedEntity->mode = mode;
-	//TODO: Perform sanity check
 	Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
 	update();
 }
@@ -205,36 +214,61 @@ bool EntityHandler::addStaticEntity(EntityData data)
 
 bool EntityHandler::addStaticEntity(EntityData data, EntityData pair)
 {
-	EntityData* entity = new EntityData(data);
-	EntityData* pairEntity = new EntityData(pair);
-	entity->highlight = 0;
+	PairEntityData * pairEntity = new PairEntityData();
+	pairEntity->e1 = EntityData(data);
+	pairEntity->e2 = EntityData(pair);
 	pairEntity->highlight = 0;
-	entity->pair = pairEntity;
-	pairEntity->pair = entity;
-	Entity::sanitizeImpossibleValue(*entity);
-	Entity::sanitizeImpossibleValue(*pairEntity);
+	pairEntity->e1.highlight = 0;
+	pairEntity->e2.highlight = 0;
+	Entity::sanitizeImpossibleValue(pairEntity->e1);
+	Entity::sanitizeImpossibleValue(pairEntity->e2);
 
 	//TODO: Extremely inefficient duplicate removal that need to be changed
-	for (int i = 0; i < entityDatas.size(); i++)
+	for (int i = 0; i < pairEntityDatas.size(); i++)
 	{
-		if (Entity::isSame(*entity, *entityDatas[i]))
+		if (Entity::isSame(*pairEntity, *pairEntityDatas[i]))
 		{
-			delete entity;
 			delete pairEntity;
 			return false;
 		}
 	}
 
-	entityDatas.push_back(entity);
-	entityDatas.push_back(pairEntity);
-	EntityConnector connector;
-	connector.e1 = entity;
-	connector.e2 = pairEntity;
-	connector.highlight = 0;
-	entityConnections.push_back(connector);
+	pairEntityDatas.push_back(pairEntity);
 	clearStaticBuffers();
 	setStaticBuffers();
 	return true;
+}
+
+void EntityHandler::deleteSingleEntity(EntityData data)
+{
+	clearStaticBuffers();
+	for (int i = 0; i < entityDatas.size(); i++)
+	{
+		if (Entity::isSame(data, *entityDatas[i]))
+		{
+			delete entityDatas[i];
+			entityDatas.erase(entityDatas.begin() + i);
+			setStaticBuffers();
+			return;
+		}
+	}
+	setStaticBuffers(); //Nothing was deleted
+}
+
+void EntityHandler::deletePairEntity(PairEntityData data)
+{
+	clearStaticBuffers();
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		if (Entity::isSame(data, *pairEntityDatas[i]))
+		{
+			delete pairEntityDatas[i];
+			pairEntityDatas.erase(pairEntityDatas.begin() + i);
+			setStaticBuffers();
+			return;
+		}
+	}
+	setStaticBuffers(); //Nothing was deleted
 }
 
 void EntityHandler::setHintToFollowMouse(bool toFollow)
@@ -257,6 +291,14 @@ void EntityHandler::moveHint(glm::vec2 cursorInModelSpace) //Basically equivalen
 	{
 		volatileEntityDynamicDatas[i]->entityCoordx += diff.x;
 		volatileEntityDynamicDatas[i]->entityCoordy += diff.y;
+	}
+
+	for (int i = 0; i < volatilePairEntityDatas.size(); i++)
+	{
+		volatilePairEntityDatas[i]->e1.entityCoordx += diff.x;
+		volatilePairEntityDatas[i]->e1.entityCoordy += diff.y;
+		volatilePairEntityDatas[i]->e2.entityCoordx += diff.x;
+		volatilePairEntityDatas[i]->e2.entityCoordy += diff.y;
 	}
 
 	selectRegionMinBoundary = selectRegionMinBoundary + diff;
@@ -301,44 +343,37 @@ void EntityHandler::stageSelected()
 	int maxX = selectRegionMaxBoundary.x;
 	int maxY = selectRegionMaxBoundary.y;
 
-	for (int i = 0; i < entityConnections.size(); i++)
+	for (int i = 0; i < pairEntityDatas.size(); i++)
 	{
-		if (!(entityConnections[i].e1->entityCoordx < minX || entityConnections[i].e1->entityCoordx > maxX ||
-			  entityConnections[i].e1->entityCoordy < minY || entityConnections[i].e1->entityCoordy > maxY) &&
-			!(entityConnections[i].e2->entityCoordx < minX || entityConnections[i].e2->entityCoordx > maxX ||
-			  entityConnections[i].e2->entityCoordy < minY || entityConnections[i].e2->entityCoordy > maxY))
+		if (!(pairEntityDatas[i]->e1.entityCoordx < minX || pairEntityDatas[i]->e1.entityCoordx > maxX ||
+			  pairEntityDatas[i]->e1.entityCoordy < minY || pairEntityDatas[i]->e1.entityCoordy > maxY) &&
+			!(pairEntityDatas[i]->e2.entityCoordx < minX || pairEntityDatas[i]->e2.entityCoordx > maxX ||
+			  pairEntityDatas[i]->e2.entityCoordy < minY || pairEntityDatas[i]->e2.entityCoordy > maxY))
 		{
 			/* TODO: This is essentially just add entity but on a different vector */
-			EntityData* e1 = new EntityData(*(entityConnections[i].e1));
-			EntityData* e2 = new EntityData(*(entityConnections[i].e2));
-			e1->highlight = 1; //Staged entities are highlighted
-			e2->highlight = 1;
-			e1->pair = e2;
-			e2->pair = e1;
-			Entity::sanitizeImpossibleValue(*e1);
-			Entity::sanitizeImpossibleValue(*e2);
-			volatileEntityDynamicDatas.push_back(e1);
-			volatileEntityDynamicDatas.push_back(e2);
-			EntityConnector connector;
-			connector.e1 = e1;
-			connector.e2 = e2;
-			volatileEntityConnections.push_back(connector);
+			PairEntityData* pairEntity = new PairEntityData();
+			pairEntity->e1 = EntityData(pairEntityDatas[i]->e1);
+			pairEntity->e2 = EntityData(pairEntityDatas[i]->e2);
+			pairEntity->e1.highlight = 1; //Staged entities are highlighted
+			pairEntity->e2.highlight = 1;
+			pairEntity->highlight = 1;
+			Entity::sanitizeImpossibleValue(pairEntity->e1);
+			Entity::sanitizeImpossibleValue(pairEntity->e2);
+
+			volatilePairEntityDatas.push_back(pairEntity);
 		}
 	}
 
 	for (int i = 0; i < entityDatas.size(); i++)
 	{
-		if (entityDatas[i]->pair == nullptr)
+		if (!(entityDatas[i]->entityCoordx < minX || entityDatas[i]->entityCoordx > maxX ||
+			  entityDatas[i]->entityCoordy < minY || entityDatas[i]->entityCoordy > maxY))
 		{
-			if (!(entityDatas[i]->entityCoordx < minX || entityDatas[i]->entityCoordx > maxX ||
-				  entityDatas[i]->entityCoordy < minY || entityDatas[i]->entityCoordy > maxY))
-			{
-				/* TODO: Same here, same as adding a new entity but on the volatile vector */
-				EntityData * e = new EntityData(*entityDatas[i]);
-				e->highlight = 1;
-				Entity::sanitizeImpossibleValue(*e);
-				volatileEntityDynamicDatas.push_back(e);
-			}
+			/* TODO: Same here, same as adding a new entity but on the volatile vector */
+			EntityData * e = new EntityData(*entityDatas[i]);
+			e->highlight = 1;
+			Entity::sanitizeImpossibleValue(*e);
+			volatileEntityDynamicDatas.push_back(e);
 		}
 	}
 
@@ -353,26 +388,19 @@ void EntityHandler::unstageSelected()
 void EntityHandler::pasteSelected()
 {
 	//Add all the pair entity utilize the connector data first
-	for (int i = 0; i < volatileEntityConnections.size(); i++)
+	for (int i = 0; i < volatilePairEntityDatas.size(); i++)
 	{
-		addStaticEntity(*volatileEntityConnections[i].e1, *volatileEntityConnections[i].e2);
+		addStaticEntity(volatilePairEntityDatas[i]->e1, volatilePairEntityDatas[i]->e2);
 	}
 
-	//If an entity has a pair, that means it has been added already.
 	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
 	{
-		if (volatileEntityDynamicDatas[i]->pair == nullptr)
-		{
-			addStaticEntity(*volatileEntityDynamicDatas[i]);
-		}
+		addStaticEntity(*volatileEntityDynamicDatas[i]);
 	}
 
 	for (int i = 0; i < volatileEntityStaticData.size(); i++)
 	{
-		if (volatileEntityStaticData[i]->pair == nullptr)
-		{
-			addStaticEntity(*volatileEntityStaticData[i]);
-		}
+		addStaticEntity(*volatileEntityStaticData[i]);
 	}
 }
 
@@ -383,60 +411,36 @@ void EntityHandler::deleteSelected()
 	int minY = selectRegionMinBoundary.y;
 	int maxY = selectRegionMaxBoundary.y;
 
-	std::vector<EntityConnector>::iterator connectorItr = entityConnections.begin();
-	while(connectorItr != entityConnections.end())
+	std::vector<PairEntityData*>::iterator pairItr = pairEntityDatas.begin();
+	while(pairItr != pairEntityDatas.end())
 	{
-		if (!(connectorItr->e1->entityCoordx < minX || connectorItr->e1->entityCoordx > maxX ||
-			  connectorItr->e1->entityCoordy < minY || connectorItr->e1->entityCoordy > maxY) &&
-			!(connectorItr->e2->entityCoordx < minX || connectorItr->e2->entityCoordx > maxX ||
-			  connectorItr->e2->entityCoordy < minY || connectorItr->e2->entityCoordy > maxY))
+		if (!((*pairItr)->e1.entityCoordx < minX || (*pairItr)->e1.entityCoordx > maxX ||
+			  (*pairItr)->e1.entityCoordy < minY || (*pairItr)->e1.entityCoordy > maxY) &&
+			!((*pairItr)->e2.entityCoordx < minX || (*pairItr)->e2.entityCoordx > maxX ||
+			  (*pairItr)->e2.entityCoordy < minY || (*pairItr)->e2.entityCoordy > maxY))
 		{
-			connectorItr = entityConnections.erase(connectorItr);
+			delete *pairItr;
+			pairItr = pairEntityDatas.erase(pairItr);
 		}
 		else
 		{
-			connectorItr++;
+			pairItr++;
 		}
 	}
 
-	std::vector<EntityData*> toDelete;
 	std::vector<EntityData*>::iterator entityItr = entityDatas.begin();
-
 	while (entityItr != entityDatas.end())
 	{
-		if ((*entityItr)->pair == nullptr)
+		if (!((*entityItr)->entityCoordx < minX || (*entityItr)->entityCoordx > maxX ||
+			  (*entityItr)->entityCoordy < minY || (*entityItr)->entityCoordy > maxY))
 		{
-			if (!((*entityItr)->entityCoordx < minX || (*entityItr)->entityCoordx > maxX ||
-				  (*entityItr)->entityCoordy < minY || (*entityItr)->entityCoordy > maxY))
-			{
-				toDelete.push_back(*entityItr);
-				entityItr = entityDatas.erase(entityItr);
-			}
-			else
-			{
-				entityItr++;
-			}
+			delete *entityItr;
+			entityItr = entityDatas.erase(entityItr);
 		}
 		else
 		{
-			if (!((*entityItr)->entityCoordx < minX || (*entityItr)->entityCoordx > maxX ||
-				  (*entityItr)->entityCoordy < minY || (*entityItr)->entityCoordy > maxY) &&
-				!((*entityItr)->pair->entityCoordx < minX || (*entityItr)->pair->entityCoordx > maxX ||
-				  (*entityItr)->pair->entityCoordy < minY || (*entityItr)->pair->entityCoordy > maxY))
-			{
-				toDelete.push_back(*entityItr);
-				entityItr = entityDatas.erase(entityItr);
-			}
-			else
-			{
-				entityItr++;
-			}
+			entityItr++;
 		}
-	}
-
-	for (int i = 0; i < toDelete.size(); i++)
-	{
-		delete toDelete[i];
 	}
 
 	setStaticBuffers();
@@ -459,6 +463,11 @@ void EntityHandler::flipSelectedHorizontally()
 	{
 		flipEntityHorizontally(*volatileEntityDynamicDatas[i], selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
 	}
+	for (int i = 0; i < volatilePairEntityDatas.size(); i++)
+	{
+		flipEntityHorizontally(volatilePairEntityDatas[i]->e1, selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+		flipEntityHorizontally(volatilePairEntityDatas[i]->e2, selectRegionMinBoundary.x, selectRegionMaxBoundary.x);
+	}
 	setVolatileBuffers();
 }
 
@@ -468,6 +477,11 @@ void EntityHandler::flipSelectedVertically()
 	{
 		flipEntityVertically(*volatileEntityDynamicDatas[i], selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
 	}
+	for (int i = 0; i < volatilePairEntityDatas.size(); i++)
+	{
+		flipEntityVertically(volatilePairEntityDatas[i]->e1, selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+		flipEntityVertically(volatilePairEntityDatas[i]->e2, selectRegionMinBoundary.y, selectRegionMaxBoundary.y);
+	}
 	setVolatileBuffers();
 }
 
@@ -476,6 +490,11 @@ void EntityHandler::rotateSelectedClockwise()
 	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
 	{
 		rotateEntityClockwise(*volatileEntityDynamicDatas[i], pivotEntityLocation);
+	}
+	for (int i = 0; i < volatilePairEntityDatas.size(); i++)
+	{
+		rotateEntityClockwise(volatilePairEntityDatas[i]->e1, pivotEntityLocation);
+		rotateEntityClockwise(volatilePairEntityDatas[i]->e2, pivotEntityLocation);
 	}
 
 	//The two corner of the selected region also need to be rotated
@@ -506,6 +525,11 @@ void EntityHandler::rotateSelectedCounterClockwise()
 	{
 		rotateEntityCounterClockwise(*volatileEntityDynamicDatas[i], pivotEntityLocation);
 	}
+	for (int i = 0; i < volatilePairEntityDatas.size(); i++)
+	{
+		rotateEntityCounterClockwise(volatilePairEntityDatas[i]->e1, pivotEntityLocation);
+		rotateEntityCounterClockwise(volatilePairEntityDatas[i]->e2, pivotEntityLocation);
+	}
 
 	//The two corner of the selected region also need to be rotated
 	int dx = selectRegionMinBoundary.x - pivotEntityLocation.x;
@@ -529,21 +553,23 @@ void EntityHandler::rotateSelectedCounterClockwise()
 	setVolatileBuffers();
 }
 
+/*
 void EntityHandler::sortEntityListByType()
 {
 	std::sort(entityDatas.begin(), entityDatas.end(), [](EntityData* e1, EntityData* e2) {
 		return (int)(e1->type) < (int)(e2->type);
 	});
 }
+*/
 
 const std::vector<EntityData*>& EntityHandler::getEntityData() const
 {
 	return entityDatas;
 }
 
-const std::vector<EntityConnector>& EntityHandler::getEntityConnectorData() const
+const std::vector<PairEntityData*>& EntityHandler::getPairEntityData() const
 {
-	return entityConnections;
+	return pairEntityDatas;
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -556,12 +582,14 @@ void EntityHandler::update()
 
 void EntityHandler::draw(glm::mat4 viewProjMtx)
 {
-	drawEntities(viewProjMtx, entityDataBuffer, (GLsizei)entityDatas.size());
-	drawConnectors(viewProjMtx, entityConnectorBuffer, (GLsizei)entityConnections.size());
-	drawEntities(viewProjMtx, volatileEntityDataBuffer, (GLsizei)(volatileEntityStaticData.size() + volatileEntityDynamicDatas.size()));
-	drawConnectors(viewProjMtx, volatileEntityConnectorBuffer, (GLsizei)volatileEntityConnections.size());
+	drawEntities(viewProjMtx, entityDataBuffer, (GLsizei)(entityDatas.size() + pairEntityDatas.size() * 2));
+	drawConnectors(viewProjMtx, pairEntityDataBuffer, (GLsizei)pairEntityDatas.size());
+	drawEntities(viewProjMtx, volatileEntityDataBuffer,
+				(GLsizei)(volatileEntityStaticData.size() + volatileEntityDynamicDatas.size() + volatilePairEntityDatas.size() * 2));
+	drawConnectors(viewProjMtx, volatileEntityConnectorBuffer, (GLsizei)volatilePairEntityDatas.size());
 }
 
+// TODO: Fix the attribute location after restructure
 void EntityHandler::drawEntities(glm::mat4 viewProjMtx, const uint entityBuffer, GLsizei entityBufferSize)
 {
 	if (allowModify)
@@ -622,6 +650,7 @@ void EntityHandler::drawEntities(glm::mat4 viewProjMtx, const uint entityBuffer,
 	glUseProgram(0);
 }
 
+// TODO: Fix the attribute location after restructure
 void EntityHandler::drawConnectors(glm::mat4 viewProjMtx, const uint connectorBuffer, GLsizei connectorBufferSize)
 {
 	if (allowModify)
@@ -668,47 +697,30 @@ void EntityHandler::drawConnectors(glm::mat4 viewProjMtx, const uint connectorBu
 
 ///////////////////////////////////////////////////////////////////////
 
-void EntityHandler::deleteEntity(EntityData* data)
+void EntityHandler::deleteEntityByAddress(EntityData* p)
 {
-	if (data == nullptr) { return; }
 	clearStaticBuffers();
-	EntityData* entityToDelete = nullptr;
-	EntityData* pairToDelete = nullptr;
 	for (int i = 0; i < entityDatas.size(); i++)
 	{
-		if (data == entityDatas[i])
+		if (p == entityDatas[i])
 		{
-			entityToDelete = entityDatas[i];
-			if (entityDatas[i]->pair != nullptr) { pairToDelete = entityDatas[i]->pair; }
+			delete entityDatas[i];
 			entityDatas.erase(entityDatas.begin() + i);
-			break;
+			setStaticBuffers();
+			return;
 		}
 	}
-
-	if (pairToDelete != nullptr)
+	for (int i = 0; i < pairEntityDatas.size(); i++)
 	{
-		for (int i = 0; i < entityConnections.size(); i++)
+		if (p == &(pairEntityDatas[i]->e1) || p == &(pairEntityDatas[i]->e2))
 		{
-			if (pairToDelete == entityConnections[i].e1 || pairToDelete == entityConnections[i].e2)
-			{
-				entityConnections.erase(entityConnections.begin() + i);
-				break;
-			}
-		}
-
-		for (int i = 0; i < entityDatas.size(); i++)
-		{
-			if (pairToDelete == entityDatas[i])
-			{
-				entityDatas.erase(entityDatas.begin() + i);
-				break;
-			}
+			delete pairEntityDatas[i];
+			pairEntityDatas.erase(pairEntityDatas.begin() + i);
+			setStaticBuffers();
+			return;
 		}
 	}
-
-	if (entityToDelete != nullptr) { delete entityToDelete; }
-	if (pairToDelete != nullptr) { delete pairToDelete; }
-	setStaticBuffers();
+	setStaticBuffers(); //Nothing was deleted
 }
 
 //May return a pointer to nullptr to indicate no closest
@@ -716,6 +728,7 @@ EntityData* EntityHandler::findClosestEntity(const glm::vec2 entityCoord, const 
 {
 	EntityData* returnptr = nullptr;
 	float closest = radius * radius;
+	bool found = false;
 	for (int i = 0; i < entityDatas.size(); i++)
 	{
 		float xDistance = entityDatas[i]->entityCoordx - entityCoord.x;
@@ -726,6 +739,7 @@ EntityData* EntityHandler::findClosestEntity(const glm::vec2 entityCoord, const 
 			returnptr = entityDatas[i];
 			if (distance < 0.0001f)
 			{
+				found = true;
 				break;
 			}
 			else
@@ -734,6 +748,45 @@ EntityData* EntityHandler::findClosestEntity(const glm::vec2 entityCoord, const 
 			}
 		}
 	}
+
+	if (found) { return returnptr; }
+
+	//Add searching for pair data as well and compare which one is closest
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		float e1xDistance = pairEntityDatas[i]->e1.entityCoordx - entityCoord.x;
+		float e1yDistance = pairEntityDatas[i]->e1.entityCoordy - entityCoord.y;
+		float distance = e1xDistance * e1xDistance + e1yDistance * e1yDistance;
+		if (distance < closest)
+		{
+			returnptr = &pairEntityDatas[i]->e1;
+			if (distance < 0.0001f)
+			{
+				break;
+			}
+			else
+			{
+				closest = distance;
+			}
+		}
+
+		float e2xDistance = pairEntityDatas[i]->e2.entityCoordx - entityCoord.x;
+		float e2yDistance = pairEntityDatas[i]->e2.entityCoordy - entityCoord.y;
+		distance = e2xDistance * e2xDistance + e2yDistance * e2yDistance;
+		if (distance < closest)
+		{
+			returnptr = &pairEntityDatas[i]->e2;
+			if (distance < 0.0001f)
+			{
+				break;
+			}
+			else
+			{
+				closest = distance;
+			}
+		}
+	}
+
 	return returnptr;
 }
 
@@ -743,45 +796,75 @@ void EntityHandler::resolveHighlight(EntityData* entityToHighlight, EntityData* 
 	bool needUpdate = false;
 	if (entityToUnHighlight != nullptr)
 	{
-		//If the entity to highlight is the same as the one about to be unlighted (this can include its pair), then no highlighting change is needed.
-		if (entityToUnHighlight == entityToHighlight || (entityToHighlight != nullptr && entityToUnHighlight == entityToHighlight->pair)) { return; }
-
-		entityToUnHighlight->highlight = 0;
 		switch (entityToUnHighlight->type)
 		{
-		case EXIT: case EXIT_SWITCH: case LOCKED_DOOR: case LOCKED_DOOR_SWITCH: case TRAP_DOOR: case TRAP_DOOR_SWITCH:
-		{
-			if (entityToUnHighlight->pair != nullptr) { entityToUnHighlight->pair->highlight = 0; }
-			for (int i = 0; i < entityConnections.size(); i++)
+			//Search in pair entities
+			case EXIT: case EXIT_SWITCH: case LOCKED_DOOR: case LOCKED_DOOR_SWITCH: case TRAP_DOOR: case TRAP_DOOR_SWITCH:
 			{
-				if (entityToUnHighlight == entityConnections[i].e1 || entityToUnHighlight == entityConnections[i].e2) { entityConnections[i].highlight = 0; }
+				for (int i = 0; i < pairEntityDatas.size(); i++)
+				{
+					if (entityToUnHighlight == &(pairEntityDatas[i]->e1) || entityToUnHighlight == &(pairEntityDatas[i]->e2))
+					{
+						//If the entity to highlight is the same as the one about to be unhighlighted (this can include its pair), then no highlighting change is needed.
+						if (entityToHighlight == &(pairEntityDatas[i]->e1) || entityToHighlight == &(pairEntityDatas[i]->e2)) { return; }
+						pairEntityDatas[i]->e1.highlight = 0;
+						pairEntityDatas[i]->e2.highlight = 0;
+						pairEntityDatas[i]->highlight = 0;
+						break;
+					}
+				}
+				break;
 			}
-			break;
-		}
-		default:
-			break;
+			default: //Search in single entities
+			{
+				//If the entity to highlight is the same as the one about to be unhighlighted, then no highlighting change is needed.
+				if (entityToUnHighlight == entityToHighlight) { return; }
+				for (int i = 0; i < entityDatas.size(); i++)
+				{
+					if (entityToUnHighlight == entityDatas[i])
+					{
+						entityDatas[i]->highlight = 0;
+						break;
+					}
+				}
+				break;
+			}
 		}
 		needUpdate = true;
 	}
 
 	if (entityToHighlight != nullptr)
 	{
-		entityToHighlight->highlight = 1;
 		switch (entityToHighlight->type)
 		{
-		case EXIT: case EXIT_SWITCH: case LOCKED_DOOR: case LOCKED_DOOR_SWITCH: case TRAP_DOOR: case TRAP_DOOR_SWITCH:
-		{
-			if (entityToHighlight->pair != nullptr) { entityToHighlight->pair->highlight = 1; }
-			for (int i = 0; i < entityConnections.size(); i++)
+			//Search in pair entities
+			case EXIT: case EXIT_SWITCH: case LOCKED_DOOR: case LOCKED_DOOR_SWITCH: case TRAP_DOOR: case TRAP_DOOR_SWITCH:
 			{
-				if (entityToHighlight == entityConnections[i].e1 || entityToHighlight == entityConnections[i].e2) { entityConnections[i].highlight = 1; }
+				for (int i = 0; i < pairEntityDatas.size(); i++)
+				{
+					if (entityToHighlight == &(pairEntityDatas[i]->e1) || entityToHighlight == &(pairEntityDatas[i]->e2))
+					{
+						pairEntityDatas[i]->e1.highlight = 1;
+						pairEntityDatas[i]->e2.highlight = 1;
+						pairEntityDatas[i]->highlight = 1;
+						break;
+					}
+				}
+				break;
 			}
-			break;
+			default: //Search in single entities
+			{
+				for (int i = 0; i < entityDatas.size(); i++)
+				{
+					if (entityToHighlight == entityDatas[i])
+					{
+						entityDatas[i]->highlight = 1;
+						break;
+					}
+				}
+				break;
+			}
 		}
-		default:
-			break;
-		}
-
 		needUpdate = true;
 	}
 
@@ -790,13 +873,18 @@ void EntityHandler::resolveHighlight(EntityData* entityToHighlight, EntityData* 
 
 void EntityHandler::setStaticBuffers()
 {
-	if (entityDatas.size() > 0)
+	if (entityDatas.size() > 0 || pairEntityDatas.size() > 0)
 	{
 		std::vector<EntityData> dataBuffer1;
-		dataBuffer1.reserve(entityDatas.size());
+		dataBuffer1.reserve(entityDatas.size() + pairEntityDatas.size() * 2);
 		for (int i = 0; i < entityDatas.size(); i++)
 		{
 			dataBuffer1.push_back(*entityDatas[i]);
+		}
+		for (int i = 0; i < pairEntityDatas.size(); i++)
+		{
+			dataBuffer1.push_back(pairEntityDatas[i]->e1);
+			dataBuffer1.push_back(pairEntityDatas[i]->e2);
 		}
 
 		// Store vertex buffer
@@ -805,20 +893,20 @@ void EntityHandler::setStaticBuffers()
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
-	if (entityConnections.size() > 0)
+	if (pairEntityDatas.size() > 0)
 	{
 		std::vector<ConnectorShaderInfo> dataBuffer2;
-		dataBuffer2.reserve(entityConnections.size());
-		for (int i = 0; i < entityConnections.size(); i++)
+		dataBuffer2.reserve(pairEntityDatas.size());
+		for (int i = 0; i < pairEntityDatas.size(); i++)
 		{
 			ConnectorShaderInfo temp;
-			temp.entity1Coord = glm::ivec2(entityConnections[i].e1->entityCoordx, entityConnections[i].e1->entityCoordy);
-			temp.entity2Coord = glm::ivec2(entityConnections[i].e2->entityCoordx, entityConnections[i].e2->entityCoordy);
-			temp.highlight = entityConnections[i].highlight;
+			temp.entity1Coord = glm::ivec2(pairEntityDatas[i]->e1.entityCoordx, pairEntityDatas[i]->e1.entityCoordy);
+			temp.entity2Coord = glm::ivec2(pairEntityDatas[i]->e2.entityCoordx, pairEntityDatas[i]->e2.entityCoordy);
+			temp.highlight = pairEntityDatas[i]->highlight;
 			dataBuffer2.push_back(temp);
 		}
 
-		glBindBuffer(GL_ARRAY_BUFFER, entityConnectorBuffer);
+		glBindBuffer(GL_ARRAY_BUFFER, pairEntityDataBuffer);
 		glBufferData(GL_ARRAY_BUFFER, dataBuffer2.size() * sizeof(ConnectorShaderInfo), &dataBuffer2[0], GL_STATIC_DRAW);
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
@@ -833,10 +921,10 @@ void EntityHandler::clearStaticBuffers()
 
 void EntityHandler::setVolatileBuffers()
 {
-	if (volatileEntityStaticData.size() > 0 || volatileEntityDynamicDatas.size() > 0)
+	if (volatileEntityStaticData.size() > 0 || volatileEntityDynamicDatas.size() > 0 || volatilePairEntityDatas.size() > 0)
 	{
 		std::vector<EntityData> dataBuffer1;
-		dataBuffer1.reserve(volatileEntityStaticData.size() + volatileEntityDynamicDatas.size());
+		dataBuffer1.reserve(volatileEntityStaticData.size() + volatileEntityDynamicDatas.size() + volatilePairEntityDatas.size() * 2);
 		for (int i = 0; i < volatileEntityStaticData.size(); i++)
 		{
 			dataBuffer1.push_back(*volatileEntityStaticData[i]);
@@ -845,6 +933,11 @@ void EntityHandler::setVolatileBuffers()
 		{
 			dataBuffer1.push_back(*volatileEntityDynamicDatas[i]);
 		}
+		for (int i = 0; i < volatilePairEntityDatas.size(); i++)
+		{
+			dataBuffer1.push_back(volatilePairEntityDatas[i]->e1);
+			dataBuffer1.push_back(volatilePairEntityDatas[i]->e2);
+		}
 
 		// Store vertex buffer
 		glBindBuffer(GL_ARRAY_BUFFER, volatileEntityDataBuffer);
@@ -852,16 +945,16 @@ void EntityHandler::setVolatileBuffers()
 		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
 
-	if (volatileEntityConnections.size() > 0)
+	if (volatilePairEntityDatas.size() > 0)
 	{
 		std::vector<ConnectorShaderInfo> dataBuffer2;
-		dataBuffer2.reserve(volatileEntityConnections.size());
-		for (int i = 0; i < volatileEntityConnections.size(); i++)
+		dataBuffer2.reserve(volatilePairEntityDatas.size());
+		for (int i = 0; i < volatilePairEntityDatas.size(); i++)
 		{
 			ConnectorShaderInfo temp;
-			temp.entity1Coord = glm::ivec2(volatileEntityConnections[i].e1->entityCoordx, volatileEntityConnections[i].e1->entityCoordy);
-			temp.entity2Coord = glm::ivec2(volatileEntityConnections[i].e2->entityCoordx, volatileEntityConnections[i].e2->entityCoordy);
-			temp.highlight = volatileEntityConnections[i].highlight;
+			temp.entity1Coord = glm::ivec2(volatilePairEntityDatas[i]->e1.entityCoordx, volatilePairEntityDatas[i]->e1.entityCoordy);
+			temp.entity2Coord = glm::ivec2(volatilePairEntityDatas[i]->e2.entityCoordx, volatilePairEntityDatas[i]->e2.entityCoordy);
+			temp.highlight = volatilePairEntityDatas[i]->highlight;
 			dataBuffer2.push_back(temp);
 		}
 
@@ -886,9 +979,14 @@ void EntityHandler::clearVolatileBuffers()
 		delete volatileEntityDynamicDatas[i];
 	}
 
+	for (int i = 0; i < volatilePairEntityDatas.size(); i++)
+	{
+		delete volatilePairEntityDatas[i];
+	}
+
 	volatileEntityStaticData.clear();
 	volatileEntityDynamicDatas.clear();
-	volatileEntityConnections.clear();
+	volatilePairEntityDatas.clear();
 }
 
 void EntityHandler::flipEntityHorizontally(EntityData & entity, int xMinBoundary, int xMaxBoundary)
@@ -947,7 +1045,6 @@ void EntityHandler::flipEntityVertically(EntityData & entity, int yMinBoundary, 
 		}
 	}
 
-	//TODO: Perform sanity check
 	Entity::sanitizeImpossibleValue(entity);
 }
 
@@ -960,7 +1057,6 @@ void EntityHandler::rotateEntityClockwise(EntityData & entity, const glm::ivec2 
 	entity.entityCoordy = pivot.y - dx;
 	entity.rotation = (entity.rotation + 8 + 2) % 8;
 
-	//TODO: Perform sanity check
 	Entity::sanitizeImpossibleValue(entity);
 }
 
@@ -973,7 +1069,6 @@ void EntityHandler::rotateEntityCounterClockwise(EntityData & entity, const glm:
 	entity.entityCoordy = pivot.y + dx;
 	entity.rotation = (entity.rotation + 8 - 2) % 8;
 
-	//TODO: Perform sanity check
 	Entity::sanitizeImpossibleValue(entity);
 }
 

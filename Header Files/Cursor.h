@@ -67,9 +67,9 @@ private:
 	int rotation = 0;
 	bool followMouse = false;
 
-	std::vector<EntityData> hintEntities = {EntityData(), EntityData()};
-	EntityData* currentHintEntity = &hintEntities[0];
-	EntityConnector hintConnector;
+	//std::vector<EntityData> hintEntities = {EntityData(), EntityData()};
+	PairEntityData hintConnector;
+	EntityData* currentHintEntity = &hintConnector.e1;
 	EntityData entityToPlace1; //Use to remember the data for EntityHandler to place the entity
 	EntityData entityToPlace2; //Use to remember the data for EntityHandler to place the entity
 	EntityRotation expectedRotation = ENTITY_DEGREE_0;

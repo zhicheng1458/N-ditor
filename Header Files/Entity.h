@@ -66,13 +66,12 @@ struct EntityData
 	int mode = TRACE_WALL_CLOCKWISE;
 	glm::vec3 color = glm::vec3(0.0f);
 	int highlight = 0; //0 for no highlight, 1 for highlight;
-	EntityData* pair = nullptr;
 };
 
-struct EntityConnector
+struct PairEntityData
 {
-	EntityData* e1 = nullptr;
-	EntityData* e2 = nullptr;
+	EntityData e1;
+	EntityData e2;
 	int highlight = 0; //0 for no highlight, 1 for highlight;
 };
 
@@ -88,4 +87,5 @@ namespace Entity
 {
 	void sanitizeImpossibleValue(EntityData & e);
 	bool isSame(const EntityData& data1, const EntityData& data2);
+	bool isSame(const PairEntityData& data1, const PairEntityData& data2);
 };

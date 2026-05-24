@@ -110,7 +110,7 @@ void Cursor::draw(glm::mat4 viewProjMtx)
 		break;
 	case ENTITY_PLACEMENT_CURSOR:
 		drawHintEntity(viewProjMtx);
-		if (currentHintEntity == &hintEntities[1])
+		if (currentHintEntity == &hintConnector.e2)
 		{
 			drawHintEntityConnector(viewProjMtx);
 		}
@@ -236,41 +236,41 @@ NumEntityToPlace Cursor::placeEntity()
 		currentHintEntity->type != TRAP_DOOR &&
 		currentHintEntity->type != TRAP_DOOR_SWITCH)
 	{
-		entityToPlace1 = hintEntities[0];
+		entityToPlace1 = hintConnector.e1;
 		entityToPlace1.rotation = expectedRotation;
 		entityToPlace1.mode = expectedMode;
 		return SINGLE_ENTITY;
 	}
 
-	if (currentHintEntity == &hintEntities[0])
+	if (currentHintEntity == &hintConnector.e1)
 	{
 
 		//Copy location and rotation of hint entity 1 to hint entity 2
-		hintEntities[1].entityCoordx = hintEntities[0].entityCoordx;
-		hintEntities[1].entityCoordy = hintEntities[0].entityCoordy;
-		hintEntities[1].rotation = expectedRotation;
-		hintEntities[1].mode = expectedMode;
+		hintConnector.e2.entityCoordx = hintConnector.e1.entityCoordx;
+		hintConnector.e2.entityCoordy = hintConnector.e1.entityCoordy;
+		hintConnector.e2.rotation = expectedRotation;
+		hintConnector.e2.mode = expectedMode;
 
 		//Find the correct type pair for the other entity
-		switch (hintEntities[0].type)
+		switch (hintConnector.e1.type)
 		{
 		case EXIT:
-			hintEntities[1].type = EXIT_SWITCH; break;
+			hintConnector.e2.type = EXIT_SWITCH; break;
 		case EXIT_SWITCH:
-			hintEntities[1].type = EXIT; break;
+			hintConnector.e2.type = EXIT; break;
 		case LOCKED_DOOR:
-			hintEntities[1].type = LOCKED_DOOR_SWITCH; break;
+			hintConnector.e2.type = LOCKED_DOOR_SWITCH; break;
 		case LOCKED_DOOR_SWITCH:
-			hintEntities[1].type = LOCKED_DOOR; break;
+			hintConnector.e2.type = LOCKED_DOOR; break;
 		case TRAP_DOOR:
-			hintEntities[1].type = TRAP_DOOR_SWITCH; break;
+			hintConnector.e2.type = TRAP_DOOR_SWITCH; break;
 		case TRAP_DOOR_SWITCH:
-			hintEntities[1].type = TRAP_DOOR; break;
+			hintConnector.e2.type = TRAP_DOOR; break;
 		default:
 			break;
 		}
 
-		Entity::sanitizeImpossibleValue(hintEntities[1]);
+		Entity::sanitizeImpossibleValue(hintConnector.e2);
 
 		swapHintPointer();
 		setHintBuffer();
@@ -278,41 +278,41 @@ NumEntityToPlace Cursor::placeEntity()
 	}
 	else
 	{
-		entityToPlace1 = hintEntities[0];
-		entityToPlace2 = hintEntities[1];
+		entityToPlace1 = hintConnector.e1;
+		entityToPlace2 = hintConnector.e2;
 		entityToPlace1.rotation = expectedRotation;
 		entityToPlace2.rotation = expectedRotation;
 		entityToPlace1.mode = expectedMode;
 		entityToPlace2.mode = expectedMode;
 
 		//Copy location and rotation of hint entity 2 to hint entity 1
-		hintEntities[0].entityCoordx = hintEntities[1].entityCoordx;
-		hintEntities[0].entityCoordy = hintEntities[1].entityCoordy;
-		hintEntities[0].rotation = expectedRotation;
-		hintEntities[0].mode = expectedMode;
+		hintConnector.e1.entityCoordx = hintConnector.e2.entityCoordx;
+		hintConnector.e1.entityCoordy = hintConnector.e2.entityCoordy;
+		hintConnector.e1.rotation = expectedRotation;
+		hintConnector.e1.mode = expectedMode;
 
-		hintEntities[1].type = NONE; //Additionally, since the second hint entity is always being drawn, set the type to none to prevent drawing.
+		hintConnector.e2.type = NONE; //Additionally, since the second hint entity is always being drawn, set the type to none to prevent drawing.
 
 		//Find the correct type pair for the other entity
-		switch (hintEntities[1].type)
+		switch (hintConnector.e2.type)
 		{
 		case EXIT:
-			hintEntities[0].type = EXIT_SWITCH; break;
+			hintConnector.e1.type = EXIT_SWITCH; break;
 		case EXIT_SWITCH:
-			hintEntities[0].type = EXIT; break;
+			hintConnector.e1.type = EXIT; break;
 		case LOCKED_DOOR:
-			hintEntities[0].type = LOCKED_DOOR_SWITCH; break;
+			hintConnector.e1.type = LOCKED_DOOR_SWITCH; break;
 		case LOCKED_DOOR_SWITCH:
-			hintEntities[0].type = LOCKED_DOOR; break;
+			hintConnector.e1.type = LOCKED_DOOR; break;
 		case TRAP_DOOR:
-			hintEntities[0].type = TRAP_DOOR_SWITCH; break;
+			hintConnector.e1.type = TRAP_DOOR_SWITCH; break;
 		case TRAP_DOOR_SWITCH:
-			hintEntities[0].type = TRAP_DOOR; break;
+			hintConnector.e1.type = TRAP_DOOR; break;
 		default:
 			break;
 		}
 
-		Entity::sanitizeImpossibleValue(hintEntities[0]);
+		Entity::sanitizeImpossibleValue(hintConnector.e1);
 
 		swapHintPointer();
 		setHintBuffer();
@@ -355,21 +355,21 @@ void Cursor::setHintEntityMode(EntityMode mode)
 
 void Cursor::resetHintEntity()
 {
-	hintEntities[0].type = NONE;
-	hintEntities[1].type = NONE;
-	currentHintEntity = &hintEntities[0];
+	hintConnector.e1.type = NONE;
+	hintConnector.e2.type = NONE;
+	currentHintEntity = &hintConnector.e1;
 	Entity::sanitizeImpossibleValue(*currentHintEntity);
 }
 
 void Cursor::swapHintPointer()
 {
-	if (currentHintEntity == &hintEntities[0])
+	if (currentHintEntity == &hintConnector.e1)
 	{
-		currentHintEntity = &hintEntities[1];
+		currentHintEntity = &hintConnector.e2;
 	}
 	else
 	{
-		currentHintEntity = &hintEntities[0];
+		currentHintEntity = &hintConnector.e1;
 	}
 	currentHintEntity->rotation = expectedRotation;
 	currentHintEntity->mode = expectedMode;
@@ -378,6 +378,7 @@ void Cursor::swapHintPointer()
 
 void Cursor::setHintBuffer()
 {
+	std::vector<EntityData> hintEntities = { hintConnector.e1, hintConnector.e2 };
 	glBindBuffer(GL_ARRAY_BUFFER, hintEntityDataBuffer);
 	glBufferData(GL_ARRAY_BUFFER, hintEntities.size() * sizeof(EntityData), &hintEntities[0], GL_STATIC_DRAW);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -436,7 +437,7 @@ void Cursor::drawHintEntity(glm::mat4 viewProjMtx)
 	glEnableVertexAttribArray(entityHighlightLoc);
 	glVertexAttribIPointer(entityHighlightLoc, 1, GL_INT, sizeof(EntityData), (void*)(5 * sizeof(int) + 3 * sizeof(float)));
 
-	glDrawArrays(GL_POINTS, 0, hintEntities.size()); //Use GL_POINTS because every "point" is 1 EntityData.
+	glDrawArrays(GL_POINTS, 0, 2); //Size is 2 because there will always be 2 entities in the buffer.
 
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
