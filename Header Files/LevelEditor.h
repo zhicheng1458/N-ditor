@@ -50,6 +50,8 @@ public:
 	TileType getTileTypeKeyModifier();
 	void setTileRotationKeyModifier(int key);
 	TileRotation getTileRotationKeyModifier();
+	EntityRotation getEntityRotationByKey(int key);
+	EntityMode getEntityModeByKey(int key);
 
 	const editingMode & getEditingMode();
 	const float getGridSpacing();
@@ -120,7 +122,8 @@ private:
 
 	//Undo/Redo
 	ActionRecorder recorder = ActionRecorder();
-	Modification tileChanges;
+	Modification tileChanges; //To track multi tile placement
+	Modification moveEntity; //To track entity changing via dragging
 
 	LevelParser levelParser; //Include stream, so it cannot be copy constructed
 

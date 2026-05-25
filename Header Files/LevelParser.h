@@ -19,8 +19,8 @@ public:
 	LevelParser(const LevelParser&) = delete;
 	LevelParser& operator=(const LevelParser&) = delete;
 
-	void loadLevel(std::string levelName, TileHandler& tileHandler, EntityHandler& entityHandler); //TODO: Add a field to fill in level name and other info.
-	void saveLevel(std::string levelName, const TileHandler& tileHandler, const EntityHandler& entityHandler);
+	void importLevel(std::string levelName, TileHandler& tileHandler, EntityHandler& entityHandler); //TODO: Add a field to fill in level name and other info.
+	void exportLevel(std::string levelName, const TileHandler& tileHandler, const EntityHandler& entityHandler);
 
 private:
 	const char* DIRECTORY_PATH = "./Levels/";

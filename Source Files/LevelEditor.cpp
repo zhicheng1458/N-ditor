@@ -217,21 +217,19 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 	{
 		keyStates[key] = true;
 
+		if (key == GLFW_KEY_ESCAPE) { this->resetStates(); return; } //Resetting editor state
 		if (key == GLFW_KEY_SLASH) { drawFineGrid = !drawFineGrid; return; } //Toggle fine grid drawing.
-		if (key == GLFW_KEY_ESCAPE)
-		{
-			this->resetStates();
-			return;
-		}
 
-		//Testing function
+		//Temporary level importing and exporting
 		if (key == GLFW_KEY_L)
 		{
 			if (!leftDown)
 			{
 				this->resetStates();
-				levelParser.loadLevel("Untitled-1", tiles, entities);
+				recorder.reset(); //Recorder will stop remembering all actions when loading a new level.
+				levelParser.importLevel("Untitled-1", tiles, entities);
 			}
+			return;
 		}
 
 		if (key == GLFW_KEY_P)
@@ -239,8 +237,32 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			if (!leftDown)
 			{
 				this->resetStates();
-				levelParser.saveLevel("Untitled-1", tiles, entities);
+				levelParser.exportLevel("Untitled-1", tiles, entities);
 			}
+			return;
+		}
+
+		//Undo and redo
+		if (mods == GLFW_MOD_CONTROL && key == GLFW_KEY_Z)
+		{
+			Modification changes;
+			if (recorder.undo(changes))
+			{
+				tiles.undo(changes);
+				entities.undo(changes);
+			}
+			return;
+		}
+
+		if (mods == GLFW_MOD_CONTROL && key == GLFW_KEY_X)
+		{
+			Modification changes;
+			if (recorder.redo(changes))
+			{
+				tiles.redo(changes);
+				entities.redo(changes);
+			}
+			return;
 		}
 
 		//int display_w, display_h;
@@ -268,68 +290,39 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						entities.stopHighlight();
 						break;
 					case GLFW_KEY_T:
-						entities.deleteClosestEntity(newEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS);
+					{
+						Modification action;
+						entities.deleteClosestEntity(newEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS, action);
+						if (recorder.checkHasChanges(action))
+						{
+							recorder.newAction(action);
+						}
 						break;
-					case GLFW_KEY_D:
-						currentEntityRotation = ENTITY_DEGREE_0;
-						entities.setHighlightedEntityRotation(currentEntityRotation);
+					}
+					case GLFW_KEY_D: case GLFW_KEY_E: case GLFW_KEY_W: case GLFW_KEY_Q: case GLFW_KEY_A: case GLFW_KEY_Z: case GLFW_KEY_S: case GLFW_KEY_C:
+					{
+						currentEntityRotation = getEntityRotationByKey(key);
+						Modification changeRotation;
+						entities.setHighlightedEntityRotation(currentEntityRotation, changeRotation);
+						if (recorder.checkHasChanges(changeRotation))
+						{
+							recorder.newAction(changeRotation);
+						}
 						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
-					case GLFW_KEY_E:
-						currentEntityRotation = ENTITY_DEGREE_45;
-						entities.setHighlightedEntityRotation(currentEntityRotation);
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_W:
-						currentEntityRotation = ENTITY_DEGREE_90;
-						entities.setHighlightedEntityRotation(currentEntityRotation);
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_Q:
-						currentEntityRotation = ENTITY_DEGREE_135;
-						entities.setHighlightedEntityRotation(currentEntityRotation);
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_A:
-						currentEntityRotation = ENTITY_DEGREE_180;
-						entities.setHighlightedEntityRotation(currentEntityRotation);
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_Z:
-						currentEntityRotation = ENTITY_DEGREE_225;
-						entities.setHighlightedEntityRotation(currentEntityRotation);
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_S:
-						currentEntityRotation = ENTITY_DEGREE_270;
-						entities.setHighlightedEntityRotation(currentEntityRotation);
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_C:
-						currentEntityRotation = ENTITY_DEGREE_315;
-						entities.setHighlightedEntityRotation(currentEntityRotation);
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_1:
-						currentEntityMode = TRACE_WALL_CLOCKWISE;
-						entities.setHighlightedEntityMode(currentEntityMode);
+					}
+					case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4:
+					{
+						currentEntityMode = getEntityModeByKey(key);
+						Modification changeMode;
+						entities.setHighlightedEntityMode(currentEntityMode, changeMode);
+						if (recorder.checkHasChanges(changeMode))
+						{
+							recorder.newAction(changeMode);
+						}
 						mouse.setHintEntityMode(currentEntityMode);
 						break;
-					case GLFW_KEY_2:
-						currentEntityMode = TRACE_WALL_COUNTERCLOCKWISE;
-						entities.setHighlightedEntityMode(currentEntityMode);
-						mouse.setHintEntityMode(currentEntityMode);
-						break;
-					case GLFW_KEY_3:
-						currentEntityMode = TURN_CLOCKWISE_ON_COLLISION;
-						entities.setHighlightedEntityMode(currentEntityMode);
-						mouse.setHintEntityMode(currentEntityMode);
-						break;
-					case GLFW_KEY_4:
-						currentEntityMode = TURN_COUNTERCLOCKWISE_ON_COLLISION;
-						entities.setHighlightedEntityMode(currentEntityMode);
-						mouse.setHintEntityMode(currentEntityMode);
-						break;
+					}
 					case GLFW_KEY_SPACE:
 						overlay.showTray();
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
@@ -362,17 +355,15 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						break;
 					case GLFW_KEY_E:
 					{
-						//tileChanges.action = ACTION_ADD;
 						if (hasRegionSelected)
 						{
 							tiles.fillSelected(tileChanges);
-							if (!tileChanges.newTiles.empty())
+							if (recorder.checkHasChanges(tileChanges))
 							{
 								recorder.newAction(tileChanges);
+								tileChanges.oldTiles.clear();
+								tileChanges.newTiles.clear();
 							}
-							//tileChanges.action = NO_ACTION;
-							tileChanges.oldTiles.clear();
-							tileChanges.newTiles.clear();
 						}
 						else
 						{
@@ -393,13 +384,12 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						if (hasRegionSelected)
 						{
 							tiles.deleteSelected(tileChanges);
-							if (!tileChanges.newTiles.empty())
+							if (recorder.checkHasChanges(tileChanges))
 							{
 								recorder.newAction(tileChanges);
+								tileChanges.oldTiles.clear();
+								tileChanges.newTiles.clear();
 							}
-							//tileChanges.action = NO_ACTION;
-							tileChanges.oldTiles.clear();
-							tileChanges.newTiles.clear();
 						}
 						else
 						{
@@ -415,7 +405,6 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					}
 					case GLFW_KEY_Q: case GLFW_KEY_W: case GLFW_KEY_S: case GLFW_KEY_A:
 					{
-						//tileChanges.action = ACTION_ADD;
 						if (!hasRegionSelected) //If there is a selected region, no tile may be placed individually
 						{
 							this->setTileRotationKeyModifier(key);
@@ -455,7 +444,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							glm::vec2 corner2 = calculateMouseModelCoord(window, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY);
 
 							mouse.setFollowMouse(true);
-							entities.cutSelected();
+							entities.cutSelected(cut);
 							entities.setHintToFollowMouse(true);
 							entities.moveHint(mouseCoordinate);
 							tiles.cutSelected(cut);
@@ -463,7 +452,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							tiles.moveHint(mouseCoordinate);
 						}
 
-						if (!cut.newTiles.empty())
+						if (recorder.checkHasChanges(cut))
 						{
 							recorder.newAction(cut);
 						}
@@ -504,52 +493,12 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						mouse.setCursorType(TILE_CURSOR);
 						mouse.resetHintEntity();
 						break;
-					case GLFW_KEY_D:
-						currentEntityRotation = ENTITY_DEGREE_0;
+					case GLFW_KEY_D: case GLFW_KEY_E: case GLFW_KEY_W: case GLFW_KEY_Q: case GLFW_KEY_A: case GLFW_KEY_Z: case GLFW_KEY_S: case GLFW_KEY_C:
+						currentEntityRotation = getEntityRotationByKey(key);
 						mouse.setHintEntityRotation(currentEntityRotation);
 						break;
-					case GLFW_KEY_E:
-						currentEntityRotation = ENTITY_DEGREE_45;
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_W:
-						currentEntityRotation = ENTITY_DEGREE_90;
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_Q:
-						currentEntityRotation = ENTITY_DEGREE_135;
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_A:
-						currentEntityRotation = ENTITY_DEGREE_180;
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_Z:
-						currentEntityRotation = ENTITY_DEGREE_225;
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_S:
-						currentEntityRotation = ENTITY_DEGREE_270;
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_C:
-						currentEntityRotation = ENTITY_DEGREE_315;
-						mouse.setHintEntityRotation(currentEntityRotation);
-						break;
-					case GLFW_KEY_1:
-						currentEntityMode = TRACE_WALL_CLOCKWISE;
-						mouse.setHintEntityMode(currentEntityMode);
-						break;
-					case GLFW_KEY_2:
-						currentEntityMode = TRACE_WALL_COUNTERCLOCKWISE;
-						mouse.setHintEntityMode(currentEntityMode);
-						break;
-					case GLFW_KEY_3:
-						currentEntityMode = TURN_CLOCKWISE_ON_COLLISION;
-						mouse.setHintEntityMode(currentEntityMode);
-						break;
-					case GLFW_KEY_4:
-						currentEntityMode = TURN_COUNTERCLOCKWISE_ON_COLLISION;
+					case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4:
+						currentEntityMode = getEntityModeByKey(key);
 						mouse.setHintEntityMode(currentEntityMode);
 						break;
 					default:
@@ -677,16 +626,27 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 
 			switch (currentEditingMode)
 			{
+			case ENTITY_EDITING_MODE:
+			{
+				entities.pickupHighlightedEntity(moveEntity);
+				break;
+			}
 			case ENTITY_PLACEMENT_MODE:
 			{
 				NumEntityToPlace num = mouse.placeEntity();
+				Modification addEntity;
 				if (num == SINGLE_ENTITY)
 				{
-					entities.addStaticEntity(mouse.getFirstEntityData());
+					entities.addStaticEntity(mouse.getFirstEntityData(), addEntity);
 				}
 				else if (num == PAIR_ENTITY)
 				{
-					entities.addStaticEntity(mouse.getFirstEntityData(), mouse.getSecondEntityData());
+					entities.addStaticEntity(mouse.getFirstEntityData(), mouse.getSecondEntityData(), addEntity);
+				}
+
+				if (recorder.checkHasChanges(addEntity))
+				{
+					recorder.newAction(addEntity);
 				}
 				break;
 			}
@@ -699,9 +659,9 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 			{
 				Modification paste;
 			
-				entities.pasteSelected();
+				entities.pasteSelected(paste);
 				tiles.pasteSelected(paste);
-				if (!paste.oldTiles.empty() || !paste.newTiles.empty())
+				if (recorder.checkHasChanges(paste))
 				{
 					recorder.newAction(paste);
 				}
@@ -738,8 +698,20 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 			//Do things when mouse left key is released
 			switch (currentEditingMode)
 			{
-			case ENTITY_PLACEMENT_MODE:
+			case ENTITY_EDITING_MODE:
+			{
+				entities.placedownHighlightedEntity(moveEntity);
+				if (recorder.checkHasChanges(moveEntity))
+				{
+					recorder.newAction(moveEntity);
+					moveEntity.oldSingleEntity.clear();
+					moveEntity.newSingleEntity.clear();
+					moveEntity.oldPairEntity.clear();
+					moveEntity.oldPairEntity.clear();
+				}
+				
 				break;
+			}
 			case TILE_EDITING_MODE:
 				hasRegionSelected = true;
 				mouse.buildSelectionRegionBuffer(oldCoord, newCoord, true, false);
@@ -1041,6 +1013,48 @@ TileRotation LevelEditor::getTileRotationKeyModifier()
 	return currentTileRotation;
 }
 
+EntityRotation LevelEditor::getEntityRotationByKey(int key)
+{
+	switch (key)
+	{
+		case GLFW_KEY_D:
+			return ENTITY_DEGREE_0;
+		case GLFW_KEY_E:
+			return ENTITY_DEGREE_45;
+		case GLFW_KEY_W:
+			return ENTITY_DEGREE_90;
+		case GLFW_KEY_Q:
+			return ENTITY_DEGREE_135;
+		case GLFW_KEY_A:
+			return ENTITY_DEGREE_180;
+		case GLFW_KEY_Z:
+			return ENTITY_DEGREE_225;
+		case GLFW_KEY_S:
+			return ENTITY_DEGREE_270;
+		case GLFW_KEY_C:
+			return ENTITY_DEGREE_315;
+		default:
+			return ENTITY_DEGREE_0;
+	}
+}
+
+EntityMode LevelEditor::getEntityModeByKey(int key)
+{
+	switch (key)
+	{
+		case GLFW_KEY_1:
+			return TRACE_WALL_CLOCKWISE;
+		case GLFW_KEY_2:
+			return TRACE_WALL_COUNTERCLOCKWISE;
+		case GLFW_KEY_3:
+			return TURN_CLOCKWISE_ON_COLLISION;
+		case GLFW_KEY_4:
+			return TURN_COUNTERCLOCKWISE_ON_COLLISION;
+		default:
+			return TRACE_WALL_CLOCKWISE;
+	}
+}
+
 /** Return true if in entity editing mode.
  *  Return false if in tile eidting mode.
  */
@@ -1076,5 +1090,4 @@ void LevelEditor::resetStates()
 	entities.setHintToFollowMouse(false);
 	tiles.unstageSelected();
 	tiles.setHintToFollowMouse(false);
-	recorder.reset();
 }

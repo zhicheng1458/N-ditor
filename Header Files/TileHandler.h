@@ -20,12 +20,13 @@ public:
 	void usePalette(const Palette& p);
 
 	void addTile(TileData data, Modification& recorder);
+	void undo(const Modification& changes);
+	void redo(const Modification& changes);
 	//void deleteTile(TileData data, Modification& recorder);
 
 	//void update(); //Only matters once you have animation
 	void draw(glm::mat4 viewProjMtx);
 
-	//TODO
 	void setHintToFollowMouse(bool toFollow);
 	void moveHint(glm::vec2 cursorInModelSpace); //cursorX and cursorY are supplied as entity coordinate at the mouse location.
 	//corner1 should be when mouse is held, corner2 should be when mouse is released

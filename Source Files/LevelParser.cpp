@@ -13,7 +13,7 @@ LevelParser::~LevelParser()
 	}
 }
 
-void LevelParser::loadLevel(std::string levelName, TileHandler& tileHandler, EntityHandler& entityHandler)
+void LevelParser::importLevel(std::string levelName, TileHandler& tileHandler, EntityHandler& entityHandler)
 {
 	if (!openInputFile(levelName))
 	{
@@ -31,7 +31,7 @@ void LevelParser::loadLevel(std::string levelName, TileHandler& tileHandler, Ent
 	closeFile();
 }
 
-void LevelParser::saveLevel(std::string levelName, const TileHandler& tileHandler, const EntityHandler& entityHandler)
+void LevelParser::exportLevel(std::string levelName, const TileHandler& tileHandler, const EntityHandler& entityHandler)
 {
 	if (levelName.length() > MAX_LEVEL_NAME_LENGTH)
 	{
@@ -316,6 +316,7 @@ bool LevelParser::loadEntities(EntityHandler& entityHandler)
 	}
 
 	entityHandler.clearData();
+	Modification placeHolder;
 
 	//TODO: Probably fix the rotation order since it is backward according to the level data.
 	fileReader.seekg(ENTITY_DATA_INDEX);
@@ -390,7 +391,7 @@ bool LevelParser::loadEntities(EntityHandler& entityHandler)
 				switchEntity.rotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - switchRotationByte) % NUM_ROTATIONS_PER_ENTITY_TYPE;
 				switchEntity.mode = switchModeByte;
 
-				entityHandler.addStaticEntity(doorEntity, switchEntity);
+				entityHandler.addStaticEntity(doorEntity, switchEntity, placeHolder);
 			}
 			else
 			{
@@ -408,7 +409,7 @@ bool LevelParser::loadEntities(EntityHandler& entityHandler)
 				e.rotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - rotationByte) % NUM_ROTATIONS_PER_ENTITY_TYPE;
 				e.mode = modeByte;
 
-				entityHandler.addStaticEntity(e);
+				entityHandler.addStaticEntity(e, placeHolder);
 			}
 		}
 
@@ -422,7 +423,7 @@ bool LevelParser::loadEntities(EntityHandler& entityHandler)
 	int minSize = exitDoorData.size() < exitSwitchData.size() ? exitDoorData.size() : exitSwitchData.size();
 	for (int i = 0; i < minSize; i++)
 	{
-		entityHandler.addStaticEntity(exitDoorData[i], exitSwitchData[i]);
+		entityHandler.addStaticEntity(exitDoorData[i], exitSwitchData[i], placeHolder);
 	}
 
 	return true;

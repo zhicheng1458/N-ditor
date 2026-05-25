@@ -154,6 +154,24 @@ void TileHandler::deleteTile(TileData data, Modification & recorder)
 }
 */
 
+void TileHandler::undo(const Modification& changes)
+{
+	Modification placeholder;
+	for (int i = 0; i < changes.oldTiles.size(); i++)
+	{
+		addTile(changes.oldTiles[i], placeholder);
+	}
+}
+
+void TileHandler::redo(const Modification& changes)
+{
+	Modification placeholder;
+	for (int i = 0; i < changes.newTiles.size(); i++)
+	{
+		addTile(changes.newTiles[i], placeholder);
+	}
+}
+
 void TileHandler::draw(glm::mat4 viewProjMtx)
 {
 	drawTiles(viewProjMtx, tileDataBuffer, (GLsizei)tileDatas.size());

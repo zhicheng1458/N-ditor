@@ -14,8 +14,13 @@ enum Action
 
 struct Modification
 {
-	std::vector<TileData> oldTiles; //Only use for changing
+	std::vector<TileData> oldTiles; //Always treated as changing for tiles
 	std::vector<TileData> newTiles;
+
+	std::vector<EntityData> oldSingleEntity;
+	std::vector<EntityData> newSingleEntity;
+	std::vector<PairEntityData> oldPairEntity;
+	std::vector<PairEntityData> newPairEntity;
 
 	/* When undoing add action: Replace all item, but treat it as a new action and push to end. Move action back 1 step.
 	 * When undoing delete action: Add all item, but treat it as a new action and push to end. Move action back 1 step.
@@ -25,5 +30,5 @@ struct Modification
 	 * Undo add action first then undo delete action
 	 */
 
-	Action action = NO_ACTION; //Pretty much only relevant for entities
+	Action action = NO_ACTION; //Might not even be relevant...
 };

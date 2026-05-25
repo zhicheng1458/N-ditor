@@ -84,19 +84,19 @@ void EntityHandler::usePalette(const Palette& p)
 }
 
 //TODO: Fix searching algorithm since pair and non pair are separately stored now
-void EntityHandler::deleteClosestEntity(const glm::vec2 entityCoord, const float radius)
+void EntityHandler::deleteClosestEntity(const glm::vec2 entityCoord, const float radius, Modification& recorder)
 {
 	EntityData* closestEntity = findClosestEntity(entityCoord, radius);
 	if (lastHighlightedEntity == closestEntity)
 	{
 		stopHighlight();
-		deleteEntityByAddress(closestEntity);
+		deleteEntityByAddress(closestEntity, recorder);
 		closestEntity = nullptr;
 		highlightClosestEntity(entityCoord, radius);
 	}
 	else
 	{
-		deleteEntityByAddress(closestEntity);
+		deleteEntityByAddress(closestEntity, recorder);
 		closestEntity = nullptr;
 	}
 }
@@ -108,30 +108,138 @@ void EntityHandler::highlightClosestEntity(const glm::vec2 entityCoord, const fl
 	lastHighlightedEntity = closestEntity;
 }
 
+bool EntityHandler::pickupHighlightedEntity(Modification& recorder)
+{
+	if (lastHighlightedEntity == nullptr)
+	{
+		return false;
+	}
+	for (int i = 0; i < entityDatas.size(); i++)
+	{
+		if (lastHighlightedEntity == entityDatas[i])
+		{
+			recorder.oldSingleEntity.push_back(*entityDatas[i]);
+			return true;
+		}
+	}
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		if (lastHighlightedEntity == &(pairEntityDatas[i]->e1) || lastHighlightedEntity == &(pairEntityDatas[i]->e2))
+		{
+			recorder.oldPairEntity.push_back(*pairEntityDatas[i]);
+			return true;
+		}
+	}
+	return false; //Somehow unable to find the highlighted entity. Possible confirmation of memory leak if this step is ran.
+}
+
 void EntityHandler::moveHighlightedEntity(int cursorX, int cursorY)
 {
-	if (lastHighlightedEntity == nullptr) { return; };
+	if (lastHighlightedEntity == nullptr) { return; }
 	if (lastHighlightedEntity->entityCoordx == cursorX && lastHighlightedEntity->entityCoordy == cursorY) { return; }
 	lastHighlightedEntity->entityCoordx = cursorX;
 	lastHighlightedEntity->entityCoordy = cursorY;
 	update();
 }
 
-void EntityHandler::setHighlightedEntityRotation(EntityRotation rotation)
+bool EntityHandler::placedownHighlightedEntity(Modification& recorder)
 {
-	if (lastHighlightedEntity == nullptr) { return; };
+	if (lastHighlightedEntity == nullptr) { return false; }
+
+	for (int i = 0; i < entityDatas.size(); i++)
+	{
+		if (lastHighlightedEntity == entityDatas[i])
+		{
+			if (!recorder.oldSingleEntity.empty() && !Entity::isSame(*lastHighlightedEntity, recorder.oldSingleEntity[0]))
+			{
+				recorder.newSingleEntity.push_back(*entityDatas[i]);
+			}
+			else
+			{
+				recorder.oldSingleEntity.clear(); //No movement was made
+			}
+			return true;
+		}
+	}
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		if (lastHighlightedEntity == &(pairEntityDatas[i]->e1) || lastHighlightedEntity == &(pairEntityDatas[i]->e2))
+		{
+			if (!recorder.oldPairEntity.empty() &&
+				!(Entity::isSame(*lastHighlightedEntity, recorder.oldPairEntity[0].e1) ||
+				  Entity::isSame(*lastHighlightedEntity, recorder.oldPairEntity[0].e2))) //Should be *mostly* fine since the pair entity usually have different type
+			{
+				recorder.newPairEntity.push_back(*pairEntityDatas[i]);
+			}
+			else
+			{
+				recorder.oldPairEntity.clear(); //No movement was made
+			}
+			return true;
+		}
+	}
+	return false; //Somehow unable to find the highlighted entity. Possible confirmation of memory leak if this step is ran.
+}
+
+void EntityHandler::setHighlightedEntityRotation(EntityRotation rotation, Modification& recorder)
+{
+	if (lastHighlightedEntity == nullptr) { return; }
 	if (lastHighlightedEntity->rotation == rotation) { return; }
-	lastHighlightedEntity->rotation = rotation;
-	Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
+	for (int i = 0; i < entityDatas.size(); i++)
+	{
+		if (lastHighlightedEntity == entityDatas[i])
+		{
+			recorder.oldSingleEntity.push_back(*entityDatas[i]);
+			lastHighlightedEntity->rotation = rotation;
+			Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
+			recorder.newSingleEntity.push_back(*entityDatas[i]);
+			update();
+			return;
+		}
+	}
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		if (lastHighlightedEntity == &(pairEntityDatas[i]->e1) || lastHighlightedEntity == &(pairEntityDatas[i]->e2))
+		{
+			recorder.oldPairEntity.push_back(*pairEntityDatas[i]);
+			lastHighlightedEntity->rotation = rotation;
+			Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
+			recorder.newPairEntity.push_back(*pairEntityDatas[i]);
+			update();
+			return;
+		}
+	}
 	update();
 }
 
-void EntityHandler::setHighlightedEntityMode(EntityMode mode)
+void EntityHandler::setHighlightedEntityMode(EntityMode mode, Modification& recorder)
 {
-	if (lastHighlightedEntity == nullptr) { return; };
+	if (lastHighlightedEntity == nullptr) { return; }
 	if (lastHighlightedEntity->mode == mode) { return; }
-	lastHighlightedEntity->mode = mode;
-	Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
+	for (int i = 0; i < entityDatas.size(); i++)
+	{
+		if (lastHighlightedEntity == entityDatas[i])
+		{
+			recorder.oldSingleEntity.push_back(*entityDatas[i]);
+			lastHighlightedEntity->mode = mode;
+			Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
+			recorder.newSingleEntity.push_back(*entityDatas[i]);
+			update();
+			return;
+		}
+	}
+	for (int i = 0; i < pairEntityDatas.size(); i++)
+	{
+		if (lastHighlightedEntity == &(pairEntityDatas[i]->e1) || lastHighlightedEntity == &(pairEntityDatas[i]->e2))
+		{
+			recorder.oldPairEntity.push_back(*pairEntityDatas[i]);
+			lastHighlightedEntity->mode = mode;
+			Entity::sanitizeImpossibleValue(*lastHighlightedEntity);
+			recorder.newPairEntity.push_back(*pairEntityDatas[i]);
+			update();
+			return;
+		}
+	}
 	update();
 }
 
@@ -141,7 +249,7 @@ void EntityHandler::stopHighlight()
 	lastHighlightedEntity = nullptr;
 }
 
-bool EntityHandler::addStaticEntity(EntityData data)
+bool EntityHandler::addStaticEntity(EntityData data, Modification& recorder)
 {
 	EntityData* entity = new EntityData(data);
 	entity->highlight = 0;
@@ -182,7 +290,9 @@ bool EntityHandler::addStaticEntity(EntityData data)
 				entity->entityCoordy == entityDatas[i]->entityCoordy)
 			{
 				delete entity;
+				recorder.oldSingleEntity.push_back(*entityDatas[i]);
 				entityDatas[i]->type = MINE;
+				recorder.newSingleEntity.push_back(*entityDatas[i]);
 				clearStaticBuffers();
 				setStaticBuffers();
 				return true;
@@ -198,7 +308,9 @@ bool EntityHandler::addStaticEntity(EntityData data)
 				entity->entityCoordy == entityDatas[i]->entityCoordy)
 			{
 				delete entity;
+				recorder.oldSingleEntity.push_back(*entityDatas[i]);
 				entityDatas[i]->type = TOGGLE_MINE;
+				recorder.newSingleEntity.push_back(*entityDatas[i]);
 				clearStaticBuffers();
 				setStaticBuffers();
 				return true;
@@ -207,12 +319,13 @@ bool EntityHandler::addStaticEntity(EntityData data)
 	}
 
 	entityDatas.push_back(entity);
+	recorder.newSingleEntity.push_back(*entity);
 	clearStaticBuffers();
 	setStaticBuffers();
 	return true;
 }
 
-bool EntityHandler::addStaticEntity(EntityData data, EntityData pair)
+bool EntityHandler::addStaticEntity(EntityData data, EntityData pair, Modification& recorder)
 {
 	PairEntityData * pairEntity = new PairEntityData();
 	pairEntity->e1 = EntityData(data);
@@ -234,41 +347,92 @@ bool EntityHandler::addStaticEntity(EntityData data, EntityData pair)
 	}
 
 	pairEntityDatas.push_back(pairEntity);
+	recorder.newPairEntity.push_back(*pairEntity);
 	clearStaticBuffers();
 	setStaticBuffers();
 	return true;
 }
 
-void EntityHandler::deleteSingleEntity(EntityData data)
+bool EntityHandler::deleteSingleEntity(EntityData data, Modification& recorder)
 {
 	clearStaticBuffers();
 	for (int i = 0; i < entityDatas.size(); i++)
 	{
 		if (Entity::isSame(data, *entityDatas[i]))
 		{
+			recorder.oldSingleEntity.push_back(*entityDatas[i]);
 			delete entityDatas[i];
 			entityDatas.erase(entityDatas.begin() + i);
 			setStaticBuffers();
-			return;
+			return true;
 		}
 	}
 	setStaticBuffers(); //Nothing was deleted
+	return false;
 }
 
-void EntityHandler::deletePairEntity(PairEntityData data)
+bool EntityHandler::deletePairEntity(PairEntityData data, Modification& recorder)
 {
 	clearStaticBuffers();
 	for (int i = 0; i < pairEntityDatas.size(); i++)
 	{
 		if (Entity::isSame(data, *pairEntityDatas[i]))
 		{
+			recorder.oldPairEntity.push_back(*pairEntityDatas[i]);
 			delete pairEntityDatas[i];
 			pairEntityDatas.erase(pairEntityDatas.begin() + i);
 			setStaticBuffers();
-			return;
+			return true;
 		}
 	}
 	setStaticBuffers(); //Nothing was deleted
+	return false;
+}
+
+void EntityHandler::undo(const Modification& changes)
+{
+	Modification placeholder;
+	//Delete the new items
+	for (int i = 0; i < changes.newSingleEntity.size(); i++)
+	{
+		deleteSingleEntity(changes.newSingleEntity[i], placeholder);
+	}
+	for (int i = 0; i < changes.newPairEntity.size(); i++)
+	{
+		deletePairEntity(changes.newPairEntity[i], placeholder);
+	}
+	//Add the old items
+	for (int i = 0; i < changes.oldSingleEntity.size(); i++)
+	{
+		addStaticEntity(changes.oldSingleEntity[i], placeholder);
+	}
+	for (int i = 0; i < changes.oldPairEntity.size(); i++)
+	{
+		addStaticEntity(changes.oldPairEntity[i].e1, changes.oldPairEntity[i].e2, placeholder);
+	}
+}
+
+void EntityHandler::redo(const Modification& changes)
+{
+	Modification placeholder;
+	//Delete the old items
+	for (int i = 0; i < changes.oldSingleEntity.size(); i++)
+	{
+		deleteSingleEntity(changes.oldSingleEntity[i], placeholder);
+	}
+	for (int i = 0; i < changes.oldPairEntity.size(); i++)
+	{
+		deletePairEntity(changes.oldPairEntity[i], placeholder);
+	}
+	//Add the new items
+	for (int i = 0; i < changes.newSingleEntity.size(); i++)
+	{
+		addStaticEntity(changes.newSingleEntity[i], placeholder);
+	}
+	for (int i = 0; i < changes.newPairEntity.size(); i++)
+	{
+		addStaticEntity(changes.newPairEntity[i].e1, changes.newPairEntity[i].e2, placeholder);
+	}
 }
 
 void EntityHandler::setHintToFollowMouse(bool toFollow)
@@ -385,26 +549,26 @@ void EntityHandler::unstageSelected()
 	clearVolatileBuffers();
 }
 
-void EntityHandler::pasteSelected()
+void EntityHandler::pasteSelected(Modification& recorder)
 {
 	//Add all the pair entity utilize the connector data first
 	for (int i = 0; i < volatilePairEntityDatas.size(); i++)
 	{
-		addStaticEntity(volatilePairEntityDatas[i]->e1, volatilePairEntityDatas[i]->e2);
+		addStaticEntity(volatilePairEntityDatas[i]->e1, volatilePairEntityDatas[i]->e2, recorder);
 	}
 
 	for (int i = 0; i < volatileEntityDynamicDatas.size(); i++)
 	{
-		addStaticEntity(*volatileEntityDynamicDatas[i]);
+		addStaticEntity(*volatileEntityDynamicDatas[i], recorder);
 	}
 
 	for (int i = 0; i < volatileEntityStaticData.size(); i++)
 	{
-		addStaticEntity(*volatileEntityStaticData[i]);
+		addStaticEntity(*volatileEntityStaticData[i], recorder);
 	}
 }
 
-void EntityHandler::deleteSelected()
+void EntityHandler::deleteSelected(Modification& recorder)
 {
 	int minX = selectRegionMinBoundary.x;
 	int maxX = selectRegionMaxBoundary.x;
@@ -419,6 +583,7 @@ void EntityHandler::deleteSelected()
 			!((*pairItr)->e2.entityCoordx < minX || (*pairItr)->e2.entityCoordx > maxX ||
 			  (*pairItr)->e2.entityCoordy < minY || (*pairItr)->e2.entityCoordy > maxY))
 		{
+			recorder.oldPairEntity.push_back(**pairItr);
 			delete *pairItr;
 			pairItr = pairEntityDatas.erase(pairItr);
 		}
@@ -434,6 +599,7 @@ void EntityHandler::deleteSelected()
 		if (!((*entityItr)->entityCoordx < minX || (*entityItr)->entityCoordx > maxX ||
 			  (*entityItr)->entityCoordy < minY || (*entityItr)->entityCoordy > maxY))
 		{
+			recorder.oldSingleEntity.push_back(**entityItr);
 			delete *entityItr;
 			entityItr = entityDatas.erase(entityItr);
 		}
@@ -451,10 +617,10 @@ void EntityHandler::copySelected()
 	stageSelected();
 }
 
-void EntityHandler::cutSelected()
+void EntityHandler::cutSelected(Modification& recorder)
 {
 	stageSelected();
-	deleteSelected();
+	deleteSelected(recorder);
 }
 
 void EntityHandler::flipSelectedHorizontally()
@@ -697,13 +863,14 @@ void EntityHandler::drawConnectors(glm::mat4 viewProjMtx, const uint connectorBu
 
 ///////////////////////////////////////////////////////////////////////
 
-void EntityHandler::deleteEntityByAddress(EntityData* p)
+void EntityHandler::deleteEntityByAddress(EntityData* p, Modification& recorder)
 {
 	clearStaticBuffers();
 	for (int i = 0; i < entityDatas.size(); i++)
 	{
 		if (p == entityDatas[i])
 		{
+			recorder.oldSingleEntity.push_back(*entityDatas[i]);
 			delete entityDatas[i];
 			entityDatas.erase(entityDatas.begin() + i);
 			setStaticBuffers();
@@ -714,6 +881,7 @@ void EntityHandler::deleteEntityByAddress(EntityData* p)
 	{
 		if (p == &(pairEntityDatas[i]->e1) || p == &(pairEntityDatas[i]->e2))
 		{
+			recorder.oldPairEntity.push_back(*pairEntityDatas[i]);
 			delete pairEntityDatas[i];
 			pairEntityDatas.erase(pairEntityDatas.begin() + i);
 			setStaticBuffers();

@@ -8,6 +8,8 @@
 #include "Entity.h"
 #include "UtilityFunctions.h"
 
+#include "Action.h"
+
 #include <algorithm>
 
 /*
@@ -47,17 +49,21 @@ public:
 
 	void usePalette(const Palette& p);
 
-	void deleteClosestEntity(const glm::vec2 entityCoord, const float radius);
+	void deleteClosestEntity(const glm::vec2 entityCoord, const float radius, Modification& recorder);
 	void highlightClosestEntity(const glm::vec2 entityCoord, const float radius);
+	bool pickupHighlightedEntity(Modification& recorder);
 	void moveHighlightedEntity(int cursorX, int cursorY);
-	void setHighlightedEntityRotation(EntityRotation rotation);
-	void setHighlightedEntityMode(EntityMode mode);
+	bool placedownHighlightedEntity(Modification& recorder);
+	void setHighlightedEntityRotation(EntityRotation rotation, Modification& recorder);
+	void setHighlightedEntityMode(EntityMode mode, Modification& recorder);
 	void stopHighlight();
 
-	bool addStaticEntity(EntityData data);
-	bool addStaticEntity(EntityData data, EntityData pair);
-	void deleteSingleEntity(EntityData data);
-	void deletePairEntity(PairEntityData data);
+	bool addStaticEntity(EntityData data, Modification& recorder);
+	bool addStaticEntity(EntityData data, EntityData pair, Modification& recorder);
+	bool deleteSingleEntity(EntityData data, Modification& recorder);
+	bool deletePairEntity(PairEntityData data, Modification& recorder);
+	void undo(const Modification& changes);
+	void redo(const Modification& changes);
 
 	void setHintToFollowMouse(bool toFollow);
 	void moveHint(glm::vec2 cursorInModelSpace); //cursorX and cursorY are supplied as entity coordinate at the mouse location.
@@ -69,10 +75,10 @@ public:
 	void setSelectedRegion(glm::vec2 corner1, glm::vec2 corner2, bool isInclusive);
 	void stageSelected();
 	void unstageSelected();
-	void pasteSelected();
-	void deleteSelected();
+	void pasteSelected(Modification& recorder);
+	void deleteSelected(Modification& recorder);
 	void copySelected();
-	void cutSelected();
+	void cutSelected(Modification& recorder);
 	void flipSelectedHorizontally();
 	void flipSelectedVertically();
 	void rotateSelectedClockwise();
@@ -118,7 +124,7 @@ private:
 	void drawEntities(glm::mat4 viewProjMtx, const uint entityBuffer, GLsizei entityBufferSize);
 	void drawConnectors(glm::mat4 viewProjMtx, const uint connectorBuffer, GLsizei connectorBufferSize);
 
-	void deleteEntityByAddress(EntityData* p);
+	void deleteEntityByAddress(EntityData* p, Modification& recorder);
 	EntityData* findClosestEntity(const glm::vec2 entityCoord, const float radius);
 	void resolveHighlight(EntityData* entityToHighlight, EntityData* entityToUnHighlight);
 
