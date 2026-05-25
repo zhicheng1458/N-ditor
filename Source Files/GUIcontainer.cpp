@@ -92,91 +92,11 @@ void GUIcontainer::keyboard(GLFWwindow * window, int key, int scancode, int acti
 						debugWindow.addMessage(m);
 					}
 					break;
-				case GLFW_KEY_1:
+				case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4: case GLFW_KEY_5: case GLFW_KEY_6: case GLFW_KEY_7: case GLFW_KEY_8: case GLFW_KEY_9:
 					if (DEBUG)
 					{
 						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", SLOPE_45DEG);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_2:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", SMALLSLOPE_RIGHT_60DEG);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_3:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", SMALLSLOPE_LEFT_60DEG);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_4:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", CURVE_IN);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_5:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", HALF);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_6:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", LARGESLOPE_RIGHT_60DEG);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_7:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", LARGESLOPE_LEFT_60DEG);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_8:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", CURVE_OUT);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_9:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Tile modifier (code): %1i", BORDER_TELEPORT);
+						snprintf(tempString, 256, "Tile modifier (code): %1i", levelEditor->getTileTypeKeyModifier(key));
 						m.message = tempString;
 						m.color = NEUTRAL_COLOR;
 						debugWindow.addMessage(m);
@@ -203,49 +123,13 @@ void GUIcontainer::keyboard(GLFWwindow * window, int key, int scancode, int acti
 						debugWindow.addMessage(m);
 					}
 					break;
-				case GLFW_KEY_Q:
+				case GLFW_KEY_Q: case GLFW_KEY_W: case GLFW_KEY_S: case GLFW_KEY_A:
 					if (DEBUG)
 					{
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Placed tile at tile coord (x, y) = (%i, %i)\n"
 							"Tile type = %i\n"
-							"Tile rotation (non-60deg tile): %i", tileCoordinate.x, tileCoordinate.y, levelEditor->getTileTypeKeyModifier(), TILE_DEGREE_0);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_W:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Placed tile at tile coord (x, y) = (%i, %i)\n"
-							"Tile type = %i\n"
-							"Tile rotation (non-60deg tile): %i", tileCoordinate.x, tileCoordinate.y, levelEditor->getTileTypeKeyModifier(), TILE_DEGREE_90);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_S:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Placed tile at tile coord (x, y) = (%i, %i)\n"
-							"Tile type = %i\n"
-							"Tile rotation (non-60deg tile): %i", tileCoordinate.x, tileCoordinate.y, levelEditor->getTileTypeKeyModifier(), TILE_DEGREE_180);
-						m.message = tempString;
-						m.color = NEUTRAL_COLOR;
-						debugWindow.addMessage(m);
-					}
-					break;
-				case GLFW_KEY_A:
-					if (DEBUG)
-					{
-						char tempString[256] = "";
-						snprintf(tempString, 256, "Placed tile at tile coord (x, y) = (%i, %i)\n"
-							"Tile type = %i\n"
-							"Tile rotation (non-60deg tile): %i", tileCoordinate.x, tileCoordinate.y, levelEditor->getTileTypeKeyModifier(), TILE_DEGREE_270);
+							"Tile rotation (non-60deg tile): %i", tileCoordinate.x, tileCoordinate.y, levelEditor->getCurrentTileType(), levelEditor->getTileRotationKeyModifier(key));
 						m.message = tempString;
 						m.color = NEUTRAL_COLOR;
 						debugWindow.addMessage(m);

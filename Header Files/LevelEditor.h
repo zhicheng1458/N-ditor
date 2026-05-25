@@ -46,10 +46,11 @@ public:
 	void scrolling(GLFWwindow * window, double xoffset, double yoffset);
 	void resize(GLFWwindow* window, int width, int height);
 
-	void setTileTypeKeyModifier(int key);
-	TileType getTileTypeKeyModifier();
-	void setTileRotationKeyModifier(int key);
-	TileRotation getTileRotationKeyModifier();
+	TileType getTileTypeKeyModifier(int key);
+	TileType getCurrentTileType();
+	int getFirstKeyByHeldKey(); //Not a good idea since it only return the very first one it find....
+	TileRotation getTileRotationKeyModifier(int key);
+	TileRotation getCurrentTileRotation();
 	EntityRotation getEntityRotationByKey(int key);
 	EntityMode getEntityModeByKey(int key);
 

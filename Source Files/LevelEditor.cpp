@@ -217,7 +217,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 	{
 		keyStates[key] = true;
 
-		if (key == GLFW_KEY_ESCAPE) { this->resetStates(); return; } //Resetting editor state
+		if (key == GLFW_KEY_ESCAPE && !leftDown) { this->resetStates(); return; } //Resetting editor state
 		if (key == GLFW_KEY_SLASH) { drawFineGrid = !drawFineGrid; return; } //Toggle fine grid drawing.
 
 		//Temporary level importing and exporting
@@ -351,7 +351,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						//entities.resolveHighlight(lastClosestEntity, nullptr);
 						break;
 					case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4: case GLFW_KEY_5: case GLFW_KEY_6: case GLFW_KEY_7: case GLFW_KEY_8: case GLFW_KEY_9:
-						this->setTileTypeKeyModifier(key);
+						currentTileType = getTileTypeKeyModifier(key);
 						break;
 					case GLFW_KEY_E:
 					{
@@ -407,13 +407,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					{
 						if (!hasRegionSelected) //If there is a selected region, no tile may be placed individually
 						{
-							this->setTileRotationKeyModifier(key);
+							//this->setTileRotationKeyModifier(key);
+							currentTileRotation = getTileRotationKeyModifier(key);
 							TileData tile;
 
-							tile.rotation = this->getTileRotationKeyModifier();
+							tile.rotation = currentTileRotation;
 							tile.tileCoordx = tileCoordinate.x;
 							tile.tileCoordy = tileCoordinate.y;
-							tile.type = this->getTileTypeKeyModifier();
+							tile.type = currentTileType;
 							tiles.addTile(tile, tileChanges);
 						}
 						break;
@@ -520,7 +521,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						hasRegionSelected = false;
 						break;
 					case GLFW_KEY_Q:
-						if (!leftDown)
+						if (!leftDown && hasRegionSelected)
 						{
 							mouse.rotateSelectionRegionClockwise();
 							entities.rotateSelectedClockwise();
@@ -528,7 +529,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						}
 						break;
 					case GLFW_KEY_E:
-						if (!leftDown)
+						if (!leftDown && hasRegionSelected)
 						{
 							mouse.rotateSelectionRegionCounterClockwise();
 							entities.rotateSelectedCounterClockwise();
@@ -536,20 +537,20 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						}
 						break;
 					case GLFW_KEY_A: case GLFW_KEY_D:
-						if (!leftDown)
+						if (!leftDown && hasRegionSelected)
 						{
 							tiles.flipSelectedHorizontally();
 							entities.flipSelectedHorizontally();
 						}
 						break;
 					case GLFW_KEY_W: case GLFW_KEY_S:
-						if (!leftDown)
+						if (!leftDown && hasRegionSelected)
 						{
 							tiles.flipSelectedVertically();
 							entities.flipSelectedVertically();
 						}
 					case GLFW_KEY_R:
-						if (!leftDown)
+						if (!leftDown && hasRegionSelected)
 						{
 							tiles.invertSelected();
 						}
@@ -802,23 +803,6 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 
 				mouse.buildSelectionRegionBuffer(oldCoord, newCoord, true, true);
 			}
-			else if (hasRegionSelected)
-			{
-				/*
-				if (keyStates[GLFW_KEY_E])
-				{
-					//TODO: Fill region with full tile
-					glm::vec2 oldCoord = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
-					tiles.fillSelected(oldCoord, newCoord);
-				}
-				else if (keyStates[GLFW_KEY_D])
-				{
-					//TODO:: Delete region (aka fill with empty tile)
-					glm::vec2 oldCoord = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
-					tiles.deleteSelected(oldCoord, newCoord);
-				}
-				*/
-			}
 			else
 			{
 				if (keyStates[GLFW_KEY_E])
@@ -855,7 +839,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						tile.rotation = TILE_DEGREE_0;
 						tile.tileCoordx = newTileCoordinate.x;
 						tile.tileCoordy = newTileCoordinate.y;
-						tile.type = this->getTileTypeKeyModifier();
+						tile.type = currentTileType;
 
 						tiles.addTile(tile, tileChanges);
 					}
@@ -868,7 +852,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						tile.rotation = TILE_DEGREE_90;
 						tile.tileCoordx = newTileCoordinate.x;
 						tile.tileCoordy = newTileCoordinate.y;
-						tile.type = this->getTileTypeKeyModifier();
+						tile.type = currentTileType;
 
 						tiles.addTile(tile, tileChanges);
 					}
@@ -881,7 +865,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						tile.rotation = TILE_DEGREE_180;
 						tile.tileCoordx = newTileCoordinate.x;
 						tile.tileCoordy = newTileCoordinate.y;
-						tile.type = this->getTileTypeKeyModifier();
+						tile.type = currentTileType;
 
 						tiles.addTile(tile, tileChanges);
 					}
@@ -894,7 +878,7 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 						tile.rotation = TILE_DEGREE_270;
 						tile.tileCoordx = newTileCoordinate.x;
 						tile.tileCoordy = newTileCoordinate.y;
-						tile.type = this->getTileTypeKeyModifier();
+						tile.type = currentTileType;
 
 						tiles.addTile(tile, tileChanges);
 					}
@@ -944,71 +928,69 @@ void LevelEditor::resize(GLFWwindow * window, int width, int height)
 
 //////////////////////////////////////////////////////////////////////////
 
-void LevelEditor::setTileTypeKeyModifier(int key)
+TileType LevelEditor::getTileTypeKeyModifier(int key)
 {
 	switch (key)
 	{
-	case GLFW_KEY_1:
-		currentTileType = SLOPE_45DEG;
-		break;
-	case GLFW_KEY_2:
-		currentTileType = SMALLSLOPE_RIGHT_60DEG;
-		break;
-	case GLFW_KEY_3:
-		currentTileType = SMALLSLOPE_LEFT_60DEG;
-		break;
-	case GLFW_KEY_4:
-		currentTileType = CURVE_IN;
-		break;
-	case GLFW_KEY_5:
-		currentTileType = HALF;
-		break;
-	case GLFW_KEY_6:
-		currentTileType = LARGESLOPE_RIGHT_60DEG;
-		break;
-	case GLFW_KEY_7:
-		currentTileType = LARGESLOPE_LEFT_60DEG;
-		break;
-	case GLFW_KEY_8:
-		currentTileType = CURVE_OUT;
-		break;
-	case GLFW_KEY_9:
-		currentTileType = BORDER_TELEPORT;
-		break;
-	default:
-		currentTileType = SLOPE_45DEG; //Default in editor is 45 deg tile
-		break;
+		case GLFW_KEY_1:
+			return SLOPE_45DEG;
+		case GLFW_KEY_2:
+			return SMALLSLOPE_RIGHT_60DEG;
+		case GLFW_KEY_3:
+			return SMALLSLOPE_LEFT_60DEG;
+		case GLFW_KEY_4:
+			return CURVE_IN;
+		case GLFW_KEY_5:
+			return HALF;
+		case GLFW_KEY_6:
+			return LARGESLOPE_RIGHT_60DEG;
+		case GLFW_KEY_7:
+			return LARGESLOPE_LEFT_60DEG;
+		case GLFW_KEY_8:
+			return CURVE_OUT;
+		case GLFW_KEY_9:
+			return BORDER_TELEPORT;
+		default:
+			return SLOPE_45DEG; //Default in editor is 45 deg tile
 	}
 }
 
-TileType LevelEditor::getTileTypeKeyModifier()
+TileType LevelEditor::getCurrentTileType()
 {
 	return currentTileType;
 }
 
-void LevelEditor::setTileRotationKeyModifier(int key)
+int LevelEditor::getFirstKeyByHeldKey()
+{
+	for (int i = 0; i < GLFW_KEY_LAST + 1; i++)
+	{
+		if (keyStates[i]) { return i; }
+	}
+	return -1; //Unable to find held key
+}
+
+TileRotation LevelEditor::getTileRotationKeyModifier(int key)
 {
 	switch (key)
 	{
-	case GLFW_KEY_Q:
-		currentTileRotation = TILE_DEGREE_0;
-		break;
-	case GLFW_KEY_W:
-		currentTileRotation = TILE_DEGREE_90;
-		break;
-	case GLFW_KEY_S:
-		currentTileRotation = TILE_DEGREE_180;
-		break;
-	case GLFW_KEY_A:
-		currentTileRotation = TILE_DEGREE_270;
-		break;
-	default:
-		currentTileRotation = TILE_DEGREE_0; //Default in editor is 45 deg tile
-		break;
+		case GLFW_KEY_Q:
+			return TILE_DEGREE_0;
+		case GLFW_KEY_W:
+			return TILE_DEGREE_90;
+		case GLFW_KEY_S:
+			return TILE_DEGREE_180;
+		case GLFW_KEY_A:
+			return TILE_DEGREE_270;
+		case GLFW_KEY_E:
+			return TILE_DEGREE_0;
+		case GLFW_KEY_D:
+			return TILE_DEGREE_0;
+		default:
+			return TILE_DEGREE_0;
 	}
 }
 
-TileRotation LevelEditor::getTileRotationKeyModifier()
+TileRotation LevelEditor::getCurrentTileRotation()
 {
 	return currentTileRotation;
 }
