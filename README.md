@@ -38,6 +38,6 @@ Everything is (mostly) the same as you would expect in the actual editor!
 
 ### Credits:
 
-Library used: GLFW, GLEW, GLM, Dear ImGUI
+Library used: GLFW, GLEW, GLM, Dear ImGUI, STB
 
 Entities sprite obtained from [inne](https://github.com/edelkas/inne) by Eddy.
