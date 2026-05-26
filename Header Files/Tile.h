@@ -28,9 +28,9 @@ enum TileRotation
 
 struct TileData
 {
-	int type;
-	int tileCoordx;
-	int tileCoordy; //each tile takes up 1 unit, so top left tile is (0, 0);
-	int rotation;
-	glm::vec3 color;
+	int type = EMPTY;
+	int tileCoordx = 0;
+	int tileCoordy = 0; //each tile takes up 1 unit, so top left tile is (0, 0);
+	int rotation = TILE_DEGREE_0;
+	glm::vec3 color = glm::vec3(0);
 };

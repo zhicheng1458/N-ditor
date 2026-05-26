@@ -48,7 +48,7 @@ public:
 
 	TileType getTileTypeKeyModifier(int key);
 	TileType getCurrentTileType();
-	int getFirstKeyByHeldKey(); //Not a good idea since it only return the very first one it find....
+	int getFirstHeldKey(); //Not a good idea since it only return the very first one it find....
 	TileRotation getTileRotationKeyModifier(int key);
 	TileRotation getCurrentTileRotation();
 	EntityRotation getEntityRotationByKey(int key);
@@ -143,11 +143,13 @@ private:
 	//Keyboard and Mouse
 	bool leftDown, middleDown, rightDown;
 	float MouseX, MouseY; //For purely tracking mouse location
-	double mouseLeftButtonPressedX, mouseLeftButtonPressedY, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY; //For tracking leftclicking
+	double mouseLeftButtonPressedX, mouseLeftButtonPressedY, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY; //For tracking leftclicking && region selection
 	double mouseLeftButtonPressedStartTime, mouseLeftButtonPressedEndTime;
 	bool keyStates[GLFW_KEY_LAST + 1];
 
 	void init();
 	void resetStates();
 	glm::vec2 calculateMouseModelCoord(GLFWwindow* window, double mouseX, double mouseY);
+	void calculateOldObjectCoord();
+	void calculateCurrentObjectCoord();
 };

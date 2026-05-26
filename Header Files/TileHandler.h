@@ -20,6 +20,7 @@ public:
 	void usePalette(const Palette& p);
 
 	void addTile(TileData data, Modification& recorder);
+	void addTile(int tileCoordX, int tileCoordY, TileRotation rotation, TileType type, Modification& recorder);
 	void undo(const Modification& changes);
 	void redo(const Modification& changes);
 	//void deleteTile(TileData data, Modification& recorder);

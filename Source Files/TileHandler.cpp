@@ -60,7 +60,7 @@ void TileHandler::addTile(TileData data, Modification& recorder)
 	// Old no tree implementation
 	clearBuffers();
 
-	if (data.type == EMPTY) { data.rotation = TILE_DEGREE_0; } //Quick sanity check in case of empty data supplied
+	if (data.type == EMPTY || data.type == FULL) { data.rotation = TILE_DEGREE_0; } //Quick sanity check in case of empty data supplied
 
 	bool found = false;
 	for (int i = 0; i < tileDatas.size(); i++)
@@ -128,6 +128,61 @@ void TileHandler::addTile(TileData data, Modification& recorder)
 		setBuffers();
 	}
 	*/
+}
+
+void TileHandler::addTile(int tileCoordX, int tileCoordY, TileRotation rotation, TileType type, Modification& recorder)
+{
+	// Old no tree implementation
+	clearBuffers();
+
+	if (type == EMPTY || type == FULL) { rotation = TILE_DEGREE_0; } //Quick sanity check in case of empty data supplied
+
+	bool found = false;
+	for (int i = 0; i < tileDatas.size(); i++)
+	{
+		if (tileDatas[i]->tileCoordx == tileCoordX && tileDatas[i]->tileCoordy == tileCoordY)
+		{
+			//If the tile being added is the exact same, then the tile adding step will be skipped
+			//(to prevent accidental misclick for save operation)
+			if (tileDatas[i]->rotation != rotation || tileDatas[i]->type != type)
+			{
+				//Record the tile that gets changed
+				recorder.oldTiles.push_back(*tileDatas[i]);
+
+				tileDatas[i]->rotation = rotation;
+				tileDatas[i]->type = type;
+
+				recorder.newTiles.push_back(*tileDatas[i]);
+			}
+			found = true;
+			break;
+		}
+	}
+	if (!found)
+	{
+		//If it is attempting to add an empty tile to a location where tile doesn't exist yet, skip this step.
+		//(to prevent accidental misclick for save operation)
+		if (type != EMPTY)
+		{
+			TileData* tile = new TileData();
+			tile->tileCoordx = tileCoordX;
+			tile->tileCoordy = tileCoordY;
+			tile->rotation = rotation;
+			tile->type = type;
+			tile->color = palette->backgroundColors.tileColor / 255.0f;
+			tileDatas.push_back(tile);
+
+			//Record the tile that gets changed. This is equivalent to changing an empty tile to a valid tile.
+			TileData oldData;
+			oldData.tileCoordx = tileCoordX;
+			oldData.tileCoordy = tileCoordY;
+			oldData.rotation = rotation;
+			oldData.type = EMPTY;
+			recorder.oldTiles.push_back(oldData);
+			recorder.newTiles.push_back(*tile);
+		}
+	}
+	setBuffers();
 }
 
 /*

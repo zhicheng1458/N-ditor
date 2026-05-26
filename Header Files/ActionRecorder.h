@@ -6,7 +6,6 @@
 class ActionRecorder
 {
 	public:
-		bool newAction(const std::vector<TileData> & tiles, const std::vector<EntityData>& entities, Action action);
 		bool newAction(const Modification& changes);
 		bool checkHasChanges(const Modification& changes);
 		bool undo(Modification& changes);

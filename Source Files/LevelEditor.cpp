@@ -134,20 +134,6 @@ void LevelEditor::init()
 	levelRegion->addLine(v2 + offsetv2vertical, entityPlaceableRegionLineColor, v4 + offsetv4vertical, entityPlaceableRegionLineColor, entityPlaceableRegionLineThickness);
 	levelRegion->addLine(v3 + offsetv3horizontal, entityPlaceableRegionLineColor, v4 + offsetv4horizontal, entityPlaceableRegionLineColor, entityPlaceableRegionLineThickness);
 	levelRegion->setBuffers();
-
-	/*
-	std::vector<TileData> tData(1);
-	std::vector<EntityData> eData(1);
-	tData[0].tileCoordx = 5;
-	tData[0].tileCoordy = 10;
-	tData[0].rotation = TILE_DEGREE_0;
-	tData[0].type = FULL;
-	recorder.newAction(tData, eData, Action::NO_ACTION);
-	std::vector<TileData> ttest;
-	std::vector<EntityData> etest;
-	bool result = recorder.getPreviousAction(ttest, etest);
-	*/
-	tileChanges.action = ACTION_CHANGE;
 }
 
 LevelEditor::~LevelEditor()
@@ -215,7 +201,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 
 	if (action == GLFW_PRESS)
 	{
-		keyStates[key] = true;
+		//keyStates[key] = true;
 
 		if (key == GLFW_KEY_ESCAPE && !leftDown) { this->resetStates(); return; } //Resetting editor state
 		if (key == GLFW_KEY_SLASH) { drawFineGrid = !drawFineGrid; return; } //Toggle fine grid drawing.
@@ -265,16 +251,10 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			return;
 		}
 
-		//int display_w, display_h;
-		//glfwGetFramebufferSize(window, &display_w, &display_h);
-		//glm::vec2 mouseCoordinate = UtilityFunctions::convertScreenCoordToModelCoord(
-		//							glm::vec2((float)MouseX, (float)MouseY),
-		//							(float)display_w, (float)display_h,
-		//							viewpoint->getViewMtx(), viewpoint->getProjectionMtx(), levelRegionModelMtx);
-		glm::vec2 mouseCoordinate = calculateMouseModelCoord(window, MouseX, MouseY);
-		glm::ivec2 tileCoordinate = UtilityFunctions::clampToNearestTileCoord(mouseCoordinate, gridSpacing);
-		glm::ivec2 newEntityCoordinate = UtilityFunctions::clampToNearestPlaceableEntityCoord(mouseCoordinate, gridSpacing);
-
+		//Require knowing mouse position beyond this point
+		glm::vec2 lastKnownMouseCoordinate = calculateMouseModelCoord(window, MouseX, MouseY);
+		glm::ivec2 currentTileCoordinate = UtilityFunctions::clampToNearestTileCoord(lastKnownMouseCoordinate, gridSpacing);
+		glm::ivec2 currentEntityCoordinate = UtilityFunctions::clampToNearestPlaceableEntityCoord(lastKnownMouseCoordinate, gridSpacing);
 
 		switch (currentEditingMode)
 		{
@@ -282,17 +262,19 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				switch (key)
 				{
 					case GLFW_KEY_F: //Only difference between F and space key is that F key doesn't show the tray
+					{
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
 						mouse.setCursorType(ENTITY_PLACEMENT_CURSOR);
 						mouse.setHintEntityType(overlay.getSelectedEntityType());
 						mouse.setHintEntityRotation(currentEntityRotation);
-						mouse.update(mouseCoordinate.x, mouseCoordinate.y);
+						mouse.update(lastKnownMouseCoordinate.x, lastKnownMouseCoordinate.y);
 						entities.stopHighlight();
 						break;
+					}
 					case GLFW_KEY_T:
 					{
 						Modification action;
-						entities.deleteClosestEntity(newEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS, action);
+						entities.deleteClosestEntity(currentEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS, action);
 						if (recorder.checkHasChanges(action))
 						{
 							recorder.newAction(action);
@@ -324,28 +306,39 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						break;
 					}
 					case GLFW_KEY_SPACE:
+					{
 						overlay.showTray();
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
 						mouse.setCursorType(ENTITY_PLACEMENT_CURSOR);
 						mouse.setHintEntityType(overlay.getSelectedEntityType());
 						mouse.setHintEntityRotation(currentEntityRotation);
-						mouse.update(mouseCoordinate.x, mouseCoordinate.y);
+						mouse.update(lastKnownMouseCoordinate.x, lastKnownMouseCoordinate.y);
 						entities.stopHighlight();
 						break;
+					}
 					case GLFW_KEY_LEFT_ALT:
+					{
 						currentEditingMode = TILE_EDITING_MODE;
 						mouse.setCursorType(TILE_CURSOR);
 						entities.stopHighlight();
 						break;
+					}
 					default:
 						//Do something when that key is pressed
 						break;
 				}
 				break;
 			case TILE_EDITING_MODE: //tile editing mode
+				if (keyStates[GLFW_KEY_E] || keyStates[GLFW_KEY_D] || keyStates[GLFW_KEY_Q] ||
+					keyStates[GLFW_KEY_W] || keyStates[GLFW_KEY_S] || keyStates[GLFW_KEY_A])
+				{
+					//No additional key may be invoked while mouse dragging tile addition/deletion is in progress
+					break;
+				}
 				switch (key)
 				{
 					case GLFW_KEY_F:
+						//Pressing F in tile editing mode doesn't actually switch to entity editing mode
 						//currentEditingMode = ENTITY_EDITING_MODE;
 						//lastClosestEntity = findClosestEntity(newEntityCoordinate, 5);
 						//entities.resolveHighlight(lastClosestEntity, nullptr);
@@ -367,13 +360,8 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						}
 						else
 						{
-							TileData tile;
-
-							tile.rotation = 0;
-							tile.tileCoordx = tileCoordinate.x;
-							tile.tileCoordy = tileCoordinate.y;
-							tile.type = FULL;
-							tiles.addTile(tile, tileChanges);
+							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, TILE_DEGREE_0, FULL, tileChanges);
+							//Do not record changes yet as mouse drag tile creation may occur.
 						}
 
 						break;
@@ -393,13 +381,8 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						}
 						else
 						{
-							TileData tile;
-
-							tile.rotation = 0;
-							tile.tileCoordx = tileCoordinate.x;
-							tile.tileCoordy = tileCoordinate.y;
-							tile.type = EMPTY;
-							tiles.addTile(tile, tileChanges);
+							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, TILE_DEGREE_0, EMPTY, tileChanges);
+							//Do not record changes yet as mouse drag tile creation may occur.
 						}
 						break;
 					}
@@ -407,50 +390,45 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					{
 						if (!hasRegionSelected) //If there is a selected region, no tile may be placed individually
 						{
-							//this->setTileRotationKeyModifier(key);
 							currentTileRotation = getTileRotationKeyModifier(key);
-							TileData tile;
-
-							tile.rotation = currentTileRotation;
-							tile.tileCoordx = tileCoordinate.x;
-							tile.tileCoordy = tileCoordinate.y;
-							tile.type = currentTileType;
-							tiles.addTile(tile, tileChanges);
+							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, currentTileRotation, currentTileType, tileChanges);
 						}
 						break;
 					}
 					case GLFW_KEY_C:
+					{
 						if (!leftDown)
 						{
 							currentEditingMode = REGION_EDITING_MODE;
-							glm::vec2 corner1 = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
-							glm::vec2 corner2 = calculateMouseModelCoord(window, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY);
+							//glm::vec2 corner1 = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
+							//glm::vec2 corner2 = calculateMouseModelCoord(window, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY);
 
 							mouse.setFollowMouse(true);
 							entities.copySelected();
 							entities.setHintToFollowMouse(true);
-							entities.moveHint(mouseCoordinate);
+							entities.moveHint(lastKnownMouseCoordinate);
 							tiles.copySelected();
 							tiles.setHintToFollowMouse(true);
-							tiles.moveHint(mouseCoordinate);
+							tiles.moveHint(lastKnownMouseCoordinate);
 						}
 						break;
+					}
 					case GLFW_KEY_X:
 					{
 						Modification cut;
 						if (!leftDown)
 						{
 							currentEditingMode = REGION_EDITING_MODE;
-							glm::vec2 corner1 = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
-							glm::vec2 corner2 = calculateMouseModelCoord(window, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY);
+							//glm::vec2 corner1 = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
+							//glm::vec2 corner2 = calculateMouseModelCoord(window, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY);
 
 							mouse.setFollowMouse(true);
 							entities.cutSelected(cut);
 							entities.setHintToFollowMouse(true);
-							entities.moveHint(mouseCoordinate);
+							entities.moveHint(lastKnownMouseCoordinate);
 							tiles.cutSelected(cut);
 							tiles.setHintToFollowMouse(true);
-							tiles.moveHint(mouseCoordinate);
+							tiles.moveHint(lastKnownMouseCoordinate);
 						}
 
 						if (recorder.checkHasChanges(cut))
@@ -460,18 +438,22 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						break;
 					}
 					case GLFW_KEY_SPACE:
+					{
 						overlay.showTray();
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
 						mouse.setCursorType(ENTITY_PLACEMENT_CURSOR);
 						mouse.setHintEntityType(overlay.getSelectedEntityType());
 						mouse.setHintEntityRotation(currentEntityRotation);
-						mouse.update(mouseCoordinate.x, mouseCoordinate.y);
+						mouse.update(lastKnownMouseCoordinate.x, lastKnownMouseCoordinate.y);
 						break;
+					}
 					case GLFW_KEY_LEFT_ALT:
+					{
 						mouse.setCursorType(TILE_CURSOR);
 						mouse.clearSelectionRegionBuffer();
 						hasRegionSelected = false;
 						break;
+					}
 					default:
 						break;
 				}
@@ -483,7 +465,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						currentEditingMode = ENTITY_EDITING_MODE;
 						mouse.setCursorType(ENTITY_CURSOR);
 						mouse.resetHintEntity();
-						entities.highlightClosestEntity(newEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS);
+						entities.highlightClosestEntity(currentEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS);
 						break;
 					case GLFW_KEY_SPACE:
 						overlay.showTray();
@@ -562,15 +544,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			default:
 				break;
 		}
+
+		keyStates[key] = true;
 	}
 	else if (action == GLFW_RELEASE)
 	{
 		keyStates[key] = false;
 
-		if (key == GLFW_KEY_SPACE)
-		{
-			overlay.hideTray();
-		}
+		if (key == GLFW_KEY_SPACE) { overlay.hideTray(); }
 
 		switch (currentEditingMode)
 		{
@@ -584,7 +565,6 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						{
 							recorder.newAction(tileChanges);
 						}
-						//tileChanges.action = NO_ACTION;
 						tileChanges.oldTiles.clear();
 						tileChanges.newTiles.clear();
 						break;
@@ -609,14 +589,10 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 		glfwGetCursorPos(window, &mouseX, &mouseY);
 		MouseX = (float)mouseX;
 		MouseY = (float)mouseY;
-		int display_w, display_h;
-		glfwGetFramebufferSize(window, &display_w, &display_h);
-		glm::vec2 newCoord = UtilityFunctions::convertScreenCoordToModelCoord(
-							 glm::vec2(MouseX, MouseY),
-							 (float)display_w, (float)display_h,
-							 viewpoint->getViewMtx(), viewpoint->getProjectionMtx(), levelRegionModelMtx);
-		glm::ivec2 newTileCoordinate = UtilityFunctions::clampToNearestTileCoord(newCoord, gridSpacing);
-		glm::ivec2 newEntityCoordinate = UtilityFunctions::clampToNearestPlaceableEntityCoord(newCoord, gridSpacing);
+
+		glm::vec2 currentMouseModelCoord = this->calculateMouseModelCoord(window, mouseX, mouseY);
+		glm::ivec2 currentTileCoordinate = UtilityFunctions::clampToNearestTileCoord(currentMouseModelCoord, gridSpacing);
+		glm::ivec2 currentEntityCoordinate = UtilityFunctions::clampToNearestPlaceableEntityCoord(currentMouseModelCoord, gridSpacing);
 
 		if (action == GLFW_PRESS)
 		{
@@ -627,49 +603,58 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 
 			switch (currentEditingMode)
 			{
-			case ENTITY_EDITING_MODE:
-			{
-				entities.pickupHighlightedEntity(moveEntity);
-				break;
-			}
-			case ENTITY_PLACEMENT_MODE:
-			{
-				NumEntityToPlace num = mouse.placeEntity();
-				Modification addEntity;
-				if (num == SINGLE_ENTITY)
+				case ENTITY_EDITING_MODE:
 				{
-					entities.addStaticEntity(mouse.getFirstEntityData(), addEntity);
+					entities.pickupHighlightedEntity(moveEntity);
+					break;
 				}
-				else if (num == PAIR_ENTITY)
+				case ENTITY_PLACEMENT_MODE:
 				{
-					entities.addStaticEntity(mouse.getFirstEntityData(), mouse.getSecondEntityData(), addEntity);
-				}
+					NumEntityToPlace num = mouse.placeEntity();
+					Modification addEntity;
+					if (num == SINGLE_ENTITY)
+					{
+						entities.addStaticEntity(mouse.getFirstEntityData(), addEntity);
+					}
+					else if (num == PAIR_ENTITY)
+					{
+						entities.addStaticEntity(mouse.getFirstEntityData(), mouse.getSecondEntityData(), addEntity);
+					}
 
-				if (recorder.checkHasChanges(addEntity))
-				{
-					recorder.newAction(addEntity);
+					if (recorder.checkHasChanges(addEntity))
+					{
+						recorder.newAction(addEntity);
+					}
+					break;
 				}
-				break;
-			}
-			case TILE_EDITING_MODE:
-				hasRegionSelected = false;
-				mouse.setCursorType(REGION_SELECT_CURSOR);
-				mouse.buildSelectionRegionBuffer(newCoord, newCoord, true, true);
-				break;
-			case REGION_EDITING_MODE:
-			{
-				Modification paste;
-			
-				entities.pasteSelected(paste);
-				tiles.pasteSelected(paste);
-				if (recorder.checkHasChanges(paste))
+				case TILE_EDITING_MODE:
 				{
-					recorder.newAction(paste);
+					//Interrupt tile building process if both tile building keys and left click are held down
+					if (!tileChanges.newTiles.empty())
+					{
+						recorder.newAction(tileChanges);
+						tileChanges.oldTiles.clear();
+						tileChanges.newTiles.clear();
+					}
+
+					hasRegionSelected = false;
+					mouse.setCursorType(REGION_SELECT_CURSOR);
+					mouse.buildSelectionRegionBuffer(currentMouseModelCoord, currentMouseModelCoord, true, true);
+					break;
 				}
-				break;
-			}
-			default:
-				break;
+				case REGION_EDITING_MODE:
+				{
+					Modification paste;
+					entities.pasteSelected(paste);
+					tiles.pasteSelected(paste);
+					if (recorder.checkHasChanges(paste))
+					{
+						recorder.newAction(paste);
+					}
+					break;
+				}
+				default:
+					break;
 			}
 
 			//Do things when mouse left key is pressed down
@@ -681,13 +666,10 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 			mouseLeftButtonReleasedY = mouseY;
 			mouseLeftButtonPressedEndTime = glfwGetTime();
 
-			glm::vec2 oldCoord = UtilityFunctions::convertScreenCoordToModelCoord(
-								 glm::vec2(mouseLeftButtonPressedX, mouseLeftButtonPressedY),
-								 (float)display_w, (float)display_h,
-								 viewpoint->getViewMtx(), viewpoint->getProjectionMtx(), levelRegionModelMtx);
-			
+			glm::vec2 oldCoord = this->calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
 
 			//Allow some click inaccuracy due to small drags
+			/*
 			if (std::pow(mouseLeftButtonReleasedX - mouseLeftButtonPressedX, 2) +
 				std::pow(mouseLeftButtonReleasedY - mouseLeftButtonPressedY, 2) <
 				5.0 * 5.0
@@ -695,34 +677,34 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 			{
 				//Do things when mouse left key is clicked
 			}
+			*/
 
 			//Do things when mouse left key is released
 			switch (currentEditingMode)
 			{
-			case ENTITY_EDITING_MODE:
-			{
-				entities.placedownHighlightedEntity(moveEntity);
-				if (recorder.checkHasChanges(moveEntity))
+				case ENTITY_EDITING_MODE:
 				{
-					recorder.newAction(moveEntity);
-					moveEntity.oldSingleEntity.clear();
-					moveEntity.newSingleEntity.clear();
-					moveEntity.oldPairEntity.clear();
-					moveEntity.oldPairEntity.clear();
+					entities.placedownHighlightedEntity(moveEntity);
+					if (recorder.checkHasChanges(moveEntity))
+					{
+						recorder.newAction(moveEntity);
+						moveEntity.oldSingleEntity.clear();
+						moveEntity.newSingleEntity.clear();
+						moveEntity.oldPairEntity.clear();
+						moveEntity.oldPairEntity.clear();
+					}
+					break;
 				}
-				
-				break;
-			}
-			case TILE_EDITING_MODE:
-				hasRegionSelected = true;
-				mouse.buildSelectionRegionBuffer(oldCoord, newCoord, true, false);
-				tiles.setSelectedRegion(oldCoord, newCoord);
-				entities.setSelectedRegion(oldCoord, newCoord, true);
-				break;
-			case REGION_EDITING_MODE:
-				break;
-			default:
-				break;
+				case TILE_EDITING_MODE:
+				{
+					hasRegionSelected = true;
+					mouse.buildSelectionRegionBuffer(oldCoord, currentMouseModelCoord, true, false);
+					tiles.setSelectedRegion(oldCoord, currentMouseModelCoord);
+					entities.setSelectedRegion(oldCoord, currentMouseModelCoord, true);
+					break;
+				}
+				default:
+					break;
 			}
 		}
 		else
@@ -752,14 +734,9 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 	float dx = (float)xpos - MouseX;
 	float dy = -((float)ypos - MouseY); //Up and down are inverted
 
-	int display_w, display_h;
-	glfwGetFramebufferSize(window, &display_w, &display_h);
-	glm::vec2 newCoord = UtilityFunctions::convertScreenCoordToModelCoord(
-						 glm::vec2((float)xpos, (float)ypos),
-						 (float)display_w, (float)display_h,
-						 viewpoint->getViewMtx(), viewpoint->getProjectionMtx(), levelRegionModelMtx);
-	glm::ivec2 newTileCoordinate = UtilityFunctions::clampToNearestTileCoord(newCoord, gridSpacing);
-	glm::ivec2 newEntityCoordinate = UtilityFunctions::clampToNearestPlaceableEntityCoord(newCoord, gridSpacing);
+	glm::vec2 currentMouseModelCoord = this->calculateMouseModelCoord(window, xpos, ypos);
+	glm::ivec2 currentTileCoordinate = UtilityFunctions::clampToNearestTileCoord(currentMouseModelCoord, gridSpacing);
+	glm::ivec2 currentEntityCoordinate = UtilityFunctions::clampToNearestPlaceableEntityCoord(currentMouseModelCoord, gridSpacing);
 
 	if (overlay.wantControl((float)xpos, (float)ypos))
 	{
@@ -767,14 +744,11 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 		mouse.resetHintEntity();
 		mouse.setHintEntityType(overlay.getSelectedEntityType());
 		mouse.setHintEntityRotation(currentEntityRotation);
-		mouse.update(newCoord.x, newCoord.y);
+		mouse.update(currentMouseModelCoord.x, currentMouseModelCoord.y);
 		return;
 	}
 
-	MouseX = (float)xpos;
-	MouseY = (float)ypos;
-
-	mouse.update(newCoord.x, newCoord.y);
+	mouse.update(currentMouseModelCoord.x, currentMouseModelCoord.y);
 
 	switch (currentEditingMode)
 	{
@@ -784,111 +758,60 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 		{
 			if (leftDown)
 			{
-				entities.moveHighlightedEntity(newEntityCoordinate.x, newEntityCoordinate.y);
+				entities.moveHighlightedEntity(currentEntityCoordinate.x, currentEntityCoordinate.y);
 			}
 			else
 			{
-				if (oldEntityCoordinate != newEntityCoordinate)
+				if (oldEntityCoordinate != currentEntityCoordinate)
 				{
-					entities.highlightClosestEntity(newEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS);
+					entities.highlightClosestEntity(currentEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS);
 				}
 			}
 			break;
 		}
 		case TILE_EDITING_MODE:
 		{
-			if (leftDown)
+			if (!hasRegionSelected)
 			{
-				glm::vec2 oldCoord = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
-
-				mouse.buildSelectionRegionBuffer(oldCoord, newCoord, true, true);
-			}
-			else
-			{
-				if (keyStates[GLFW_KEY_E])
+				if (leftDown)
 				{
-					if (oldTileCoordinate.x != newTileCoordinate.x || oldTileCoordinate.y != newTileCoordinate.y)
-					{
-						TileData fulltile;
-						fulltile.rotation = TILE_DEGREE_0;
-						fulltile.tileCoordx = newTileCoordinate.x;
-						fulltile.tileCoordy = newTileCoordinate.y;
-						fulltile.type = FULL;
+					glm::vec2 oldCoord = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
 
-						tiles.addTile(fulltile, tileChanges);
-					}
+					mouse.buildSelectionRegionBuffer(oldCoord, currentMouseModelCoord, true, true);
 				}
-				else if (keyStates[GLFW_KEY_D])
+				else //Mouse drag addition/deletion for tiles
 				{
-					if (oldTileCoordinate.x != newTileCoordinate.x || oldTileCoordinate.y != newTileCoordinate.y)
+					if (keyStates[GLFW_KEY_E])
 					{
-						TileData emptyTile;
-						emptyTile.rotation = TILE_DEGREE_0;
-						emptyTile.tileCoordx = newTileCoordinate.x;
-						emptyTile.tileCoordy = newTileCoordinate.y;
-						emptyTile.type = EMPTY;
-
-						tiles.addTile(emptyTile, tileChanges);
+						if (oldTileCoordinate != currentTileCoordinate)
+						{
+							int key = getFirstHeldKey();
+							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, getTileRotationKeyModifier(key), FULL, tileChanges);
+						}
 					}
-				}
-				else if (keyStates[GLFW_KEY_Q])
-				{
-					if (oldTileCoordinate.x != newTileCoordinate.x || oldTileCoordinate.y != newTileCoordinate.y)
+					else if (keyStates[GLFW_KEY_D])
 					{
-						TileData tile;
-						tile.rotation = TILE_DEGREE_0;
-						tile.tileCoordx = newTileCoordinate.x;
-						tile.tileCoordy = newTileCoordinate.y;
-						tile.type = currentTileType;
-
-						tiles.addTile(tile, tileChanges);
+						if (oldTileCoordinate != currentTileCoordinate)
+						{
+							int key = getFirstHeldKey();
+							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, getTileRotationKeyModifier(key), EMPTY, tileChanges);
+						}
 					}
-				}
-				else if (keyStates[GLFW_KEY_W])
-				{
-					if (oldTileCoordinate.x != newTileCoordinate.x || oldTileCoordinate.y != newTileCoordinate.y)
+					else if (keyStates[GLFW_KEY_Q] || keyStates[GLFW_KEY_W] || keyStates[GLFW_KEY_S] || keyStates[GLFW_KEY_A])
 					{
-						TileData tile;
-						tile.rotation = TILE_DEGREE_90;
-						tile.tileCoordx = newTileCoordinate.x;
-						tile.tileCoordy = newTileCoordinate.y;
-						tile.type = currentTileType;
-
-						tiles.addTile(tile, tileChanges);
-					}
-				}
-				else if (keyStates[GLFW_KEY_S])
-				{
-					if (oldTileCoordinate.x != newTileCoordinate.x || oldTileCoordinate.y != newTileCoordinate.y)
-					{
-						TileData tile;
-						tile.rotation = TILE_DEGREE_180;
-						tile.tileCoordx = newTileCoordinate.x;
-						tile.tileCoordy = newTileCoordinate.y;
-						tile.type = currentTileType;
-
-						tiles.addTile(tile, tileChanges);
-					}
-				}
-				else if (keyStates[GLFW_KEY_A])
-				{
-					if (oldTileCoordinate.x != newTileCoordinate.x || oldTileCoordinate.y != newTileCoordinate.y)
-					{
-						TileData tile;
-						tile.rotation = TILE_DEGREE_270;
-						tile.tileCoordx = newTileCoordinate.x;
-						tile.tileCoordy = newTileCoordinate.y;
-						tile.type = currentTileType;
-
-						tiles.addTile(tile, tileChanges);
+						if (oldTileCoordinate != currentTileCoordinate)
+						{
+							int key = getFirstHeldKey();
+							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, getTileRotationKeyModifier(key), currentTileType, tileChanges);
+						}
 					}
 				}
 			}
 			break;
 		}
 		case REGION_EDITING_MODE:
-			entities.moveHint(newCoord);
-			tiles.moveHint(newCoord);
+			entities.moveHint(currentMouseModelCoord);
+			tiles.moveHint(currentMouseModelCoord);
 			break;
 		default:
 			break;
@@ -900,8 +823,11 @@ void LevelEditor::mouseMotion(GLFWwindow * window, double xpos, double ypos)
 		viewpoint->move(-dx, -dy);
 	}
 
-	if (oldTileCoordinate != newTileCoordinate) {oldTileCoordinate = newTileCoordinate;}
-	if (oldEntityCoordinate != newEntityCoordinate) {oldEntityCoordinate = newEntityCoordinate;}
+	//Update mouse to new position
+	MouseX = (float)xpos;
+	MouseY = (float)ypos;
+	if (oldTileCoordinate != currentTileCoordinate) {oldTileCoordinate = currentTileCoordinate;}
+	if (oldEntityCoordinate != currentEntityCoordinate) {oldEntityCoordinate = currentEntityCoordinate;}
 }
 
 void LevelEditor::scrolling(GLFWwindow * window, double xoffset, double yoffset)
@@ -960,12 +886,13 @@ TileType LevelEditor::getCurrentTileType()
 	return currentTileType;
 }
 
-int LevelEditor::getFirstKeyByHeldKey()
+int LevelEditor::getFirstHeldKey()
 {
 	for (int i = 0; i < GLFW_KEY_LAST + 1; i++)
 	{
 		if (keyStates[i]) { return i; }
 	}
+
 	return -1; //Unable to find held key
 }
 
@@ -1058,6 +985,16 @@ glm::vec2 LevelEditor::calculateMouseModelCoord(GLFWwindow* window, double mouse
 		glm::vec2((float)mouseX, (float)mouseY),
 		(float)display_w, (float)display_h,
 		viewpoint->getViewMtx(), viewpoint->getProjectionMtx(), levelRegionModelMtx);
+}
+
+void LevelEditor::calculateOldObjectCoord()
+{
+
+}
+
+void LevelEditor::calculateCurrentObjectCoord()
+{
+	
 }
 
 void LevelEditor::resetStates()

@@ -4,14 +4,6 @@
 #include "Tile.h"
 #include "Entity.h"
 
-enum Action
-{
-	NO_ACTION = 0,
-	ACTION_ADD = 1,
-	ACTION_DELETE = 2,
-	ACTION_CHANGE = 3 //Move is the same as changing
-};
-
 struct Modification
 {
 	std::vector<TileData> oldTiles; //Always treated as changing for tiles
@@ -29,6 +21,4 @@ struct Modification
 	 * Treat move action as delete (old location) action follow by add (new location) action.
 	 * Undo add action first then undo delete action
 	 */
-
-	Action action = NO_ACTION; //Might not even be relevant...
 };

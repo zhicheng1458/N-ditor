@@ -106,7 +106,7 @@ void GUIcontainer::keyboard(GLFWwindow * window, int key, int scancode, int acti
 					if (DEBUG)
 					{
 						char tempString[256] = "";
-						snprintf(tempString, 256, "Placed tile at tile coord (x, y) = (%i, %i)\n"
+						snprintf(tempString, 256, "Placed full tile at tile coord (x, y) = (%i, %i)\n"
 							"Tile type = %i", tileCoordinate.x, tileCoordinate.y, FULL);
 						m.message = tempString;
 						m.color = NEUTRAL_COLOR;
@@ -189,7 +189,6 @@ void GUIcontainer::keyboard(GLFWwindow * window, int key, int scancode, int acti
 					if (DEBUG)
 					{
 						char tempString[256] = "";
-						//GUI performed the message first before the value is actually changed
 						snprintf(tempString, 256, "Switching to entity placement mode.");
 						m.message = tempString;
 						m.color = NEUTRAL_COLOR;
@@ -200,7 +199,6 @@ void GUIcontainer::keyboard(GLFWwindow * window, int key, int scancode, int acti
 					if (DEBUG)
 					{
 						char tempString[256] = "";
-						//GUI performed the message first before the value is actually changed
 						snprintf(tempString, 256, "Attempting to delete an entity");
 						m.message = tempString;
 						m.color = NEUTRAL_COLOR;
@@ -211,7 +209,6 @@ void GUIcontainer::keyboard(GLFWwindow * window, int key, int scancode, int acti
 					if (DEBUG)
 					{
 						char tempString[256] = "";
-						//GUI performed the message first before the value is actually changed
 						snprintf(tempString, 256, "Rotated the selected entity, if any");
 						m.message = tempString;
 						m.color = NEUTRAL_COLOR;
@@ -317,7 +314,7 @@ void GUIcontainer::keyboard(GLFWwindow * window, int key, int scancode, int acti
 		{
 			keyStates[GLFW_KEY_E] = false;
 		}
-		 else if (key != GLFW_KEY_UNKNOWN)
+		else if (key != GLFW_KEY_UNKNOWN)
 		{
 			//Do something when that key is released
 			keyStates[key] = false;
