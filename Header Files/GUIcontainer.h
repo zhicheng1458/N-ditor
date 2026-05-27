@@ -17,7 +17,7 @@
 class GUIcontainer
 {
 public:
-	GUIcontainer(GLFWwindow * window, LevelEditor * levelEditor);
+	GUIcontainer(GLFWwindow * window, LevelEditor & levelEditor);
 	~GUIcontainer();
 
 	void update();
@@ -35,7 +35,7 @@ private:
 	const glm::vec4 NEUTRAL_COLOR = glm::vec4(0.9f, 0.9f, 0.1f, 1.0f); //Yellow
 
 	GLFWwindow * window;
-	LevelEditor * levelEditor;
+	LevelEditor & levelEditor;
 	Camera * viewpoint;
 
 	//Keyboard and Mouse

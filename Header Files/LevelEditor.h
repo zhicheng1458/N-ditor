@@ -131,6 +131,8 @@ private:
 	ActionRecorder recorder = ActionRecorder();
 	Modification tileChanges; //To track multi tile placement
 	Modification moveEntity; //To track entity changing via dragging
+	double LKeyPressedTime = -5.0;
+	const double MAX_IMPORT_DECISION_TIME = 5.0;
 
 	LevelParser levelParser; //Include stream, so it cannot be copy constructed
 

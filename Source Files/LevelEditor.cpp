@@ -219,7 +219,6 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 		if (key == GLFW_KEY_ESCAPE && !leftDown) //Resetting editor state
 		{
 			this->resetStates();
-
 			#ifdef DEBUG_NDITOR
 			char tempString[256] = "";
 			snprintf(tempString, 256, "Resetting editor states.");
@@ -249,28 +248,60 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 		{
 			if (!leftDown)
 			{
-				this->resetStates();
-				recorder.reset(); //Recorder will stop remembering all actions when loading a new level.
-				levelParser.importLevel("Untitled-1", tiles, entities);
+				if (recorder.hasUnsavedWork())
+				{
+					double currentTime = glfwGetTime();
+					double timeSinceLLastPressed = currentTime - LKeyPressedTime;
+					LKeyPressedTime = currentTime;
 
-				#ifdef DEBUG_NDITOR
-				char tempString[256] = "";
-				snprintf(tempString, 256, "Imported level from default level named \"Untitled-1\".");
-				debugMessage.message = tempString;
-				debugMessage.color = SUCCESS_COLOR;
-				hasDebugInfo = true;
-				#endif
+					if (recorder.changedSinceLastChecked() || timeSinceLLastPressed > MAX_IMPORT_DECISION_TIME)
+					{
+						char tempString[256] = "";
+						snprintf(tempString, 256, "There are unsaved changed! Press the 'L' key again in the next 5 seconds to confirm importing level with unsaved changes.");
+						debugMessage.message = tempString;
+						debugMessage.color = NEUTRAL_COLOR;
+						hasDebugInfo = true;
+
+						recorder.flagCurrentStep();
+					}
+					else
+					{
+						//TODO: A bug where saving the level then immediately loading the level will result in this step instead of the one below.
+						//(Which it *isn't* a bad thing because the level is saved already but....)
+						this->resetStates();
+						recorder.reset(); //Recorder will stop remembering all actions when loading a new level.
+						levelParser.importLevel("Untitled-1", tiles, entities);
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Discarded unsaved changes and imported level from default level named \"Untitled-1\".");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
+					}
+				}
+				else
+				{
+					this->resetStates();
+					recorder.reset(); //Recorder will stop remembering all actions when loading a new level.
+					levelParser.importLevel("Untitled-1", tiles, entities);
+					#ifdef DEBUG_NDITOR
+					char tempString[256] = "";
+					snprintf(tempString, 256, "Imported level from default level named \"Untitled-1\".");
+					debugMessage.message = tempString;
+					debugMessage.color = SUCCESS_COLOR;
+					hasDebugInfo = true;
+					#endif
+				}
 			}
 			return;
 		}
-
 		if (key == GLFW_KEY_P)
 		{
 			if (!leftDown)
 			{
 				this->resetStates();
 				levelParser.exportLevel("Untitled-1", tiles, entities);
-
 				#ifdef DEBUG_NDITOR
 				char tempString[256] = "";
 				snprintf(tempString, 256, "Exported level to default level named \"Untitled-1\".");
@@ -290,7 +321,6 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			{
 				tiles.undo(changes);
 				entities.undo(changes);
-
 				#ifdef DEBUG_NDITOR
 				char tempString[256] = "";
 				snprintf(tempString, 256, "Undid an action.");
@@ -299,16 +329,16 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				hasDebugInfo = true;
 				#endif
 			}
+			#ifdef DEBUG_NDITOR
 			else
 			{
-				#ifdef DEBUG_NDITOR
 				char tempString[256] = "";
 				snprintf(tempString, 256, "There are no more action to undo, or the undo memory limit has been reached.");
 				debugMessage.message = tempString;
 				debugMessage.color = NEUTRAL_COLOR;
 				hasDebugInfo = true;
-				#endif
 			}
+			#endif
 			return;
 		}
 
@@ -319,7 +349,6 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			{
 				tiles.redo(changes);
 				entities.redo(changes);
-
 				#ifdef DEBUG_NDITOR
 				char tempString[256] = "";
 				snprintf(tempString, 256, "Redid an action.");

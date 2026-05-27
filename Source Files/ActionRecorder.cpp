@@ -50,9 +50,25 @@ bool ActionRecorder::redo(Modification& changes)
 	return true;
 }
 
+bool ActionRecorder::hasUnsavedWork()
+{
+	return(currentStep != recorder.begin());
+}
+
+void ActionRecorder::flagCurrentStep()
+{
+	flaggedStep = currentStep;
+}
+
+bool ActionRecorder::changedSinceLastChecked()
+{
+	return (flaggedStep != currentStep);
+}
+
 bool ActionRecorder::reset()
 {
 	recorder.clear();
 	currentStep = recorder.end();
+	flaggedStep = currentStep;
 	return true;
 }

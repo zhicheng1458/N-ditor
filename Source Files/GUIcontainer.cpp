@@ -3,7 +3,7 @@
 //For debug printing
 #include <fstream>
 
-GUIcontainer::GUIcontainer(GLFWwindow * window, LevelEditor * levelEditor)
+GUIcontainer::GUIcontainer(GLFWwindow * window, LevelEditor & levelEditor) : levelEditor(levelEditor)
 {
 	if (!window)
 	{
@@ -12,8 +12,7 @@ GUIcontainer::GUIcontainer(GLFWwindow * window, LevelEditor * levelEditor)
 	}
 
 	this->window = window;
-	this->levelEditor = levelEditor;
-	this->viewpoint = levelEditor->getCamera();
+	this->viewpoint = levelEditor.getCamera();
 }
 
 void GUIcontainer::update()
@@ -34,10 +33,10 @@ void GUIcontainer::update()
 	if (DEBUG)
 	{
 		//ImGui::ShowDemoWindow();
-		if (levelEditor->hasDebugInfo)
+		if (levelEditor.hasDebugInfo)
 		{
-			debugWindow.addMessage(levelEditor->debugMessage);
-			levelEditor->hasDebugInfo = false;
+			debugWindow.addMessage(levelEditor.debugMessage);
+			levelEditor.hasDebugInfo = false;
 		}
 		debugWindow.displaySystemMessageWindow();
 	}
