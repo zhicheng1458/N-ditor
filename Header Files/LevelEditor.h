@@ -16,6 +16,10 @@
 #include "LevelParser.h"
 #include "ActionRecorder.h"
 
+#include "Message.h" //For ImGUI
+
+#define DEBUG_NDITOR
+
 enum editingMode
 {
 	TILE_EDITING_MODE = 0,
@@ -57,10 +61,12 @@ public:
 	const editingMode & getEditingMode();
 	const float getGridSpacing();
 
-	//Colors (Use palette for these color)
-	//glm::vec3 backgroundColor = glm::vec3(140.0f / 255.0f, 148.0f / 255.0f, 136.0f / 255.0f);
-	//glm::vec3 tileColor = glm::vec3(79.0f / 255.0f, 86.0f / 255.0f, 87.0f / 255.0f);
-	//glm::vec3 gridColor = glm::vec3(1.0f);
+	//For debugging
+	Message debugMessage; //TODO: Change to a vector to allow logging multiple message at once.
+	bool hasDebugInfo = false;
+	const glm::vec4 SUCCESS_COLOR = glm::vec4(0.1f, 0.9f, 0.1f, 1.0f); //Green
+	const glm::vec4 ERROR_COLOR = glm::vec4(0.9f, 0.1f, 0.1f, 1.0f);   //Red
+	const glm::vec4 NEUTRAL_COLOR = glm::vec4(0.9f, 0.9f, 0.1f, 1.0f); //Yellow
 
 private:
 

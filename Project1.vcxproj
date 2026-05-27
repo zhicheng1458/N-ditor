@@ -157,6 +157,7 @@
     <ClInclude Include="Header Files\imstb_rectpack.h" />
     <ClInclude Include="Header Files\imstb_textedit.h" />
     <ClInclude Include="Header Files\imstb_truetype.h" />
+    <ClInclude Include="Header Files\Message.h" />
     <ClInclude Include="Header Files\Model.h" />
     <ClInclude Include="Header Files\Palette.h" />
     <ClInclude Include="Header Files\Shader.h" />

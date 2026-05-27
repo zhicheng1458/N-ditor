@@ -39,7 +39,8 @@ void SystemMessageGUI::displaySystemMessageWindow()
 
 		ImGui::SameLine(0.0f, 0.0f);
 
-		ImGui::PushStyleColor(ImGuiCol_Text, (*itr).color);
+		glm::vec4 currentColor = (*itr).color;
+		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(currentColor.x, currentColor.y, currentColor.z, currentColor.w));
 		ImGui::TextWrapped((*itr).message.c_str());
 		ImGui::PopStyleColor();
 		++messageNumber;

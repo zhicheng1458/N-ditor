@@ -26,19 +26,13 @@ public:
 	bool wantMouseControl();
 	bool wantKeyboardControl();
 
-	void keyboard(GLFWwindow* window, int key, int scancode, int action, int mods);
-	void mouseButton(GLFWwindow* window, int button, int action, int mods);
-	void mouseMotion(GLFWwindow* window, double xpos, double ypos);
-	void scrolling(GLFWwindow* window, double xoffset, double yoffset);
-	void resize(GLFWwindow* window, int width, int height);
-
 private:
 
 	const bool DEBUG = true;
 	SystemMessageGUI debugWindow;
-	const ImVec4 SUCCESS_COLOR = ImVec4(0.1f, 0.9f, 0.1f, 1.0f); //Green
-	const ImVec4 ERROR_COLOR = ImVec4(0.9f, 0.1f, 0.1f, 1.0f);   //Red
-	const ImVec4 NEUTRAL_COLOR = ImVec4(0.9f, 0.9f, 0.1f, 1.0f); //Yellow
+	const glm::vec4 SUCCESS_COLOR = glm::vec4(0.1f, 0.9f, 0.1f, 1.0f); //Green
+	const glm::vec4 ERROR_COLOR = glm::vec4(0.9f, 0.1f, 0.1f, 1.0f);   //Red
+	const glm::vec4 NEUTRAL_COLOR = glm::vec4(0.9f, 0.9f, 0.1f, 1.0f); //Yellow
 
 	GLFWwindow * window;
 	LevelEditor * levelEditor;

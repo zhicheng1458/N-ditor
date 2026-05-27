@@ -290,7 +290,6 @@ void MainProgram::Keyboard(GLFWwindow * window, int key, int scancode, int actio
 {
 	if (!gui->wantKeyboardControl())
 	{
-		gui->keyboard(window, key, scancode, action, mods);
 		levelEditor->keyboard(window, key, scancode, action, mods);
 	}
 }
@@ -299,7 +298,6 @@ void MainProgram::MouseButton(GLFWwindow * window, int button, int action, int m
 {
 	if (!gui->wantMouseControl())
 	{
-		gui->mouseButton(window, button, action, mods);
 		levelEditor->mouseButton(window, button, action, mods);
 	}
 }
@@ -308,7 +306,6 @@ void MainProgram::MouseMotion(GLFWwindow * window, double xpos, double ypos)
 {
 	if (!gui->wantMouseControl())
 	{
-		gui->mouseMotion(window, xpos, ypos);
 		levelEditor->mouseMotion(window, xpos, ypos);
 	}
 }
@@ -317,7 +314,6 @@ void MainProgram::Scrolling(GLFWwindow * window, double xoffset, double yoffset)
 {
 	if (!gui->wantMouseControl())
 	{
-		gui->scrolling(window, xoffset, yoffset);
 		levelEditor->scrolling(window, xoffset, yoffset);
 	}
 }

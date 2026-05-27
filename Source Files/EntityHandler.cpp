@@ -150,6 +150,7 @@ bool EntityHandler::placedownHighlightedEntity(Modification& recorder)
 	{
 		if (lastHighlightedEntity == entityDatas[i])
 		{
+			/*
 			if (!recorder.oldSingleEntity.empty() && !Entity::isSame(*lastHighlightedEntity, recorder.oldSingleEntity[0]))
 			{
 				recorder.newSingleEntity.push_back(*entityDatas[i]);
@@ -158,6 +159,8 @@ bool EntityHandler::placedownHighlightedEntity(Modification& recorder)
 			{
 				recorder.oldSingleEntity.clear(); //No movement was made
 			}
+			*/
+			recorder.newSingleEntity.push_back(*entityDatas[i]);
 			return true;
 		}
 	}
@@ -165,6 +168,7 @@ bool EntityHandler::placedownHighlightedEntity(Modification& recorder)
 	{
 		if (lastHighlightedEntity == &(pairEntityDatas[i]->e1) || lastHighlightedEntity == &(pairEntityDatas[i]->e2))
 		{
+			/*
 			if (!recorder.oldPairEntity.empty() &&
 				!(Entity::isSame(*lastHighlightedEntity, recorder.oldPairEntity[0].e1) ||
 				  Entity::isSame(*lastHighlightedEntity, recorder.oldPairEntity[0].e2))) //Should be *mostly* fine since the pair entity usually have different type
@@ -175,6 +179,8 @@ bool EntityHandler::placedownHighlightedEntity(Modification& recorder)
 			{
 				recorder.oldPairEntity.clear(); //No movement was made
 			}
+			*/
+			recorder.newPairEntity.push_back(*pairEntityDatas[i]);
 			return true;
 		}
 	}
@@ -367,7 +373,9 @@ bool EntityHandler::deleteSingleEntity(EntityData data, Modification& recorder)
 			return true;
 		}
 	}
-	setStaticBuffers(); //Nothing was deleted
+	//Nothing was deleted: Unable to find said entity
+	//(May occur if user forcefully move 2 entities together while it was not allowed to be duped)
+	setStaticBuffers(); 
 	return false;
 }
 

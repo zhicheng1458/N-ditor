@@ -199,12 +199,50 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 {
 	if (key == GLFW_KEY_UNKNOWN) { return; }
 
+	if (leftDown)
+	{
+		#ifdef DEBUG_NDITOR
+		char tempString[256] = "";
+		snprintf(tempString, 256, "Editor cannot perform keyboard action while left click is held down.");
+		debugMessage.message = tempString;
+		debugMessage.color = ERROR_COLOR;
+		hasDebugInfo = true;
+		#endif
+		//Keyboard interaction may not occur while left click is held down.
+		return;
+	}
+
 	if (action == GLFW_PRESS)
 	{
 		//keyStates[key] = true;
 
-		if (key == GLFW_KEY_ESCAPE && !leftDown) { this->resetStates(); return; } //Resetting editor state
-		if (key == GLFW_KEY_SLASH) { drawFineGrid = !drawFineGrid; return; } //Toggle fine grid drawing.
+		if (key == GLFW_KEY_ESCAPE && !leftDown) //Resetting editor state
+		{
+			this->resetStates();
+
+			#ifdef DEBUG_NDITOR
+			char tempString[256] = "";
+			snprintf(tempString, 256, "Resetting editor states.");
+			debugMessage.message = tempString;
+			debugMessage.color = SUCCESS_COLOR;
+			hasDebugInfo = true;
+			#endif
+			return;
+		}
+
+		if (key == GLFW_KEY_SLASH) //Toggle fine grid drawing.
+		{
+			drawFineGrid = !drawFineGrid;
+
+			#ifdef DEBUG_NDITOR
+			char tempString[256] = "";
+			snprintf(tempString, 256, "Toggling fine grid drawing.");
+			debugMessage.message = tempString;
+			debugMessage.color = SUCCESS_COLOR;
+			hasDebugInfo = true;
+			#endif
+			return;
+		}
 
 		//Temporary level importing and exporting
 		if (key == GLFW_KEY_L)
@@ -214,6 +252,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				this->resetStates();
 				recorder.reset(); //Recorder will stop remembering all actions when loading a new level.
 				levelParser.importLevel("Untitled-1", tiles, entities);
+
+				#ifdef DEBUG_NDITOR
+				char tempString[256] = "";
+				snprintf(tempString, 256, "Imported level from default level named \"Untitled-1\".");
+				debugMessage.message = tempString;
+				debugMessage.color = SUCCESS_COLOR;
+				hasDebugInfo = true;
+				#endif
 			}
 			return;
 		}
@@ -224,6 +270,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			{
 				this->resetStates();
 				levelParser.exportLevel("Untitled-1", tiles, entities);
+
+				#ifdef DEBUG_NDITOR
+				char tempString[256] = "";
+				snprintf(tempString, 256, "Exported level to default level named \"Untitled-1\".");
+				debugMessage.message = tempString;
+				debugMessage.color = SUCCESS_COLOR;
+				hasDebugInfo = true;
+				#endif
 			}
 			return;
 		}
@@ -236,6 +290,24 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			{
 				tiles.undo(changes);
 				entities.undo(changes);
+
+				#ifdef DEBUG_NDITOR
+				char tempString[256] = "";
+				snprintf(tempString, 256, "Undid an action.");
+				debugMessage.message = tempString;
+				debugMessage.color = SUCCESS_COLOR;
+				hasDebugInfo = true;
+				#endif
+			}
+			else
+			{
+				#ifdef DEBUG_NDITOR
+				char tempString[256] = "";
+				snprintf(tempString, 256, "There are no more action to undo, or the undo memory limit has been reached.");
+				debugMessage.message = tempString;
+				debugMessage.color = NEUTRAL_COLOR;
+				hasDebugInfo = true;
+				#endif
 			}
 			return;
 		}
@@ -247,7 +319,25 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			{
 				tiles.redo(changes);
 				entities.redo(changes);
+
+				#ifdef DEBUG_NDITOR
+				char tempString[256] = "";
+				snprintf(tempString, 256, "Redid an action.");
+				debugMessage.message = tempString;
+				debugMessage.color = SUCCESS_COLOR;
+				hasDebugInfo = true;
+				#endif
 			}
+			#ifdef DEBUG_NDITOR
+			else
+			{
+				char tempString[256] = "";
+				snprintf(tempString, 256, "There are no more action to redo.");
+				debugMessage.message = tempString;
+				debugMessage.color = NEUTRAL_COLOR;
+				hasDebugInfo = true;
+			}
+			#endif
 			return;
 		}
 
@@ -269,6 +359,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						mouse.setHintEntityRotation(currentEntityRotation);
 						mouse.update(lastKnownMouseCoordinate.x, lastKnownMouseCoordinate.y);
 						entities.stopHighlight();
+
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Switching to entity placement mode.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
 					}
 					case GLFW_KEY_T:
@@ -278,7 +376,24 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						if (recorder.checkHasChanges(action))
 						{
 							recorder.newAction(action);
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Deleted an entity near the mouse cursor.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
+						#ifdef DEBUG_NDITOR
+						else
+						{
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Attempted to delete an entity, but there was none close enough to the mouse.");
+							debugMessage.message = tempString;
+							debugMessage.color = NEUTRAL_COLOR;
+							hasDebugInfo = true;
+						}
+						#endif
 						break;
 					}
 					case GLFW_KEY_D: case GLFW_KEY_E: case GLFW_KEY_W: case GLFW_KEY_Q: case GLFW_KEY_A: case GLFW_KEY_Z: case GLFW_KEY_S: case GLFW_KEY_C:
@@ -289,8 +404,23 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						if (recorder.checkHasChanges(changeRotation))
 						{
 							recorder.newAction(changeRotation);
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Changed the rotation of the highlighted entity to: %i.", currentEntityRotation);
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
 						mouse.setHintEntityRotation(currentEntityRotation);
+
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Changed the current entity rotation to: %i.", currentEntityRotation);
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
 					}
 					case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4:
@@ -301,8 +431,23 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						if (recorder.checkHasChanges(changeMode))
 						{
 							recorder.newAction(changeMode);
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Changed the mode of the highlighted entity to: %i.", currentEntityMode);
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
 						mouse.setHintEntityMode(currentEntityMode);
+
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Changed the current entity mode to: %i.", currentEntityMode);
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
 					}
 					case GLFW_KEY_SPACE:
@@ -314,6 +459,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						mouse.setHintEntityRotation(currentEntityRotation);
 						mouse.update(lastKnownMouseCoordinate.x, lastKnownMouseCoordinate.y);
 						entities.stopHighlight();
+
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Switching to entity placement mode.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
 					}
 					case GLFW_KEY_LEFT_ALT:
@@ -321,6 +474,13 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						currentEditingMode = TILE_EDITING_MODE;
 						mouse.setCursorType(TILE_CURSOR);
 						entities.stopHighlight();
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Switching to tile placement mode.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
 					}
 					default:
@@ -344,8 +504,17 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						//entities.resolveHighlight(lastClosestEntity, nullptr);
 						break;
 					case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4: case GLFW_KEY_5: case GLFW_KEY_6: case GLFW_KEY_7: case GLFW_KEY_8: case GLFW_KEY_9:
+					{
 						currentTileType = getTileTypeKeyModifier(key);
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Switch to tile type: %i.", currentTileType);
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
+					}
 					case GLFW_KEY_E:
 					{
 						if (hasRegionSelected)
@@ -356,19 +525,42 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 								recorder.newAction(tileChanges);
 								tileChanges.oldTiles.clear();
 								tileChanges.newTiles.clear();
+								#ifdef DEBUG_NDITOR
+								char tempString[256] = "";
+								snprintf(tempString, 256, "Filled the selected region with full tile.");
+								debugMessage.message = tempString;
+								debugMessage.color = SUCCESS_COLOR;
+								hasDebugInfo = true;
+								#endif
 							}
+							#ifdef DEBUG_NDITOR
+							else
+							{
+								char tempString[256] = "";
+								snprintf(tempString, 256, "Filled the selected region with full tile, but no changes was made.");
+								debugMessage.message = tempString;
+								debugMessage.color = NEUTRAL_COLOR;
+								hasDebugInfo = true;
+							}
+							#endif
 						}
 						else
 						{
 							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, TILE_DEGREE_0, FULL, tileChanges);
 							//Do not record changes yet as mouse drag tile creation may occur.
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Adding full tile(s) at the cursor location.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
 
 						break;
 					}
 					case GLFW_KEY_D:
 					{
-						//tileChanges.action = ACTION_DELETE;
 						if (hasRegionSelected)
 						{
 							tiles.deleteSelected(tileChanges);
@@ -377,12 +569,36 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 								recorder.newAction(tileChanges);
 								tileChanges.oldTiles.clear();
 								tileChanges.newTiles.clear();
+								#ifdef DEBUG_NDITOR
+								char tempString[256] = "";
+								snprintf(tempString, 256, "Deleted the tiles in the selected region.");
+								debugMessage.message = tempString;
+								debugMessage.color = SUCCESS_COLOR;
+								hasDebugInfo = true;
+								#endif
 							}
+							#ifdef DEBUG_NDITOR
+							else
+							{
+								char tempString[256] = "";
+								snprintf(tempString, 256, "Deleted the tiles in the selected region, but no changes were made.");
+								debugMessage.message = tempString;
+								debugMessage.color = NEUTRAL_COLOR;
+								hasDebugInfo = true;
+							}
+							#endif
 						}
 						else
 						{
 							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, TILE_DEGREE_0, EMPTY, tileChanges);
 							//Do not record changes yet as mouse drag tile creation may occur.
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Deleting tile(s) at the cursor location.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
 						break;
 					}
@@ -392,16 +608,23 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						{
 							currentTileRotation = getTileRotationKeyModifier(key);
 							tiles.addTile(currentTileCoordinate.x, currentTileCoordinate.y, currentTileRotation, currentTileType, tileChanges);
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Adding tile(s) at the cursor location.\n"
+													  "Tile rotation = %i\n"
+													  "Tile type = %i", currentTileRotation, currentTileType);
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
 						break;
 					}
 					case GLFW_KEY_C:
 					{
-						if (!leftDown)
+						if (!leftDown && hasRegionSelected)
 						{
 							currentEditingMode = REGION_EDITING_MODE;
-							//glm::vec2 corner1 = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
-							//glm::vec2 corner2 = calculateMouseModelCoord(window, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY);
 
 							mouse.setFollowMouse(true);
 							entities.copySelected();
@@ -410,17 +633,22 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							tiles.copySelected();
 							tiles.setHintToFollowMouse(true);
 							tiles.moveHint(lastKnownMouseCoordinate);
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Copied all items within the selected region. Switching to region editing mode.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
 						break;
 					}
 					case GLFW_KEY_X:
 					{
 						Modification cut;
-						if (!leftDown)
+						if (!leftDown && hasRegionSelected)
 						{
 							currentEditingMode = REGION_EDITING_MODE;
-							//glm::vec2 corner1 = calculateMouseModelCoord(window, mouseLeftButtonPressedX, mouseLeftButtonPressedY);
-							//glm::vec2 corner2 = calculateMouseModelCoord(window, mouseLeftButtonReleasedX, mouseLeftButtonReleasedY);
 
 							mouse.setFollowMouse(true);
 							entities.cutSelected(cut);
@@ -429,6 +657,13 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							tiles.cutSelected(cut);
 							tiles.setHintToFollowMouse(true);
 							tiles.moveHint(lastKnownMouseCoordinate);
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Cut all items within the selected region. Switching to region editing mode.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
 
 						if (recorder.checkHasChanges(cut))
@@ -441,10 +676,18 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					{
 						overlay.showTray();
 						currentEditingMode = ENTITY_PLACEMENT_MODE;
+						hasRegionSelected = false;
 						mouse.setCursorType(ENTITY_PLACEMENT_CURSOR);
 						mouse.setHintEntityType(overlay.getSelectedEntityType());
 						mouse.setHintEntityRotation(currentEntityRotation);
 						mouse.update(lastKnownMouseCoordinate.x, lastKnownMouseCoordinate.y);
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Switching to entity placement mode.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
 					}
 					case GLFW_KEY_LEFT_ALT:
@@ -452,6 +695,13 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						mouse.setCursorType(TILE_CURSOR);
 						mouse.clearSelectionRegionBuffer();
 						hasRegionSelected = false;
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Resetting selected region.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
 					}
 					default:
@@ -462,28 +712,66 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				switch (key)
 				{
 					case GLFW_KEY_F:
+					{
 						currentEditingMode = ENTITY_EDITING_MODE;
 						mouse.setCursorType(ENTITY_CURSOR);
 						mouse.resetHintEntity();
 						entities.highlightClosestEntity(currentEntityCoordinate, MAX_HIGHLIGHT_SEARCH_RADIUS);
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Switching to entity editing mode.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
+					}
 					case GLFW_KEY_SPACE:
+					{
 						overlay.showTray();
-						entities.stopHighlight();
+						entities.stopHighlight(); //Unnecessary?
 						break;
+					}
 					case GLFW_KEY_LEFT_ALT:
+					{
 						currentEditingMode = TILE_EDITING_MODE;
 						mouse.setCursorType(TILE_CURSOR);
 						mouse.resetHintEntity();
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Switching to tile editing mode.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
+					}
 					case GLFW_KEY_D: case GLFW_KEY_E: case GLFW_KEY_W: case GLFW_KEY_Q: case GLFW_KEY_A: case GLFW_KEY_Z: case GLFW_KEY_S: case GLFW_KEY_C:
+					{
 						currentEntityRotation = getEntityRotationByKey(key);
 						mouse.setHintEntityRotation(currentEntityRotation);
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Setting entity rotation to: %i", currentEntityRotation);
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
+					}
 					case GLFW_KEY_1: case GLFW_KEY_2: case GLFW_KEY_3: case GLFW_KEY_4:
+					{
 						currentEntityMode = getEntityModeByKey(key);
 						mouse.setHintEntityMode(currentEntityMode);
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Setting entity mode to: %i", currentEntityMode);
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
+					}
 					default:
 						break;
 				}
@@ -492,6 +780,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				switch (key)
 				{
 					case GLFW_KEY_LEFT_ALT:
+					{
 						currentEditingMode = TILE_EDITING_MODE;
 						mouse.setCursorType(TILE_CURSOR);
 						mouse.setFollowMouse(false);
@@ -501,42 +790,146 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						tiles.unstageSelected();
 						tiles.setHintToFollowMouse(false);
 						hasRegionSelected = false;
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Deselected the items that were copied. Switching to tile editing mode.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 						break;
+					}
 					case GLFW_KEY_Q:
+					{
 						if (!leftDown && hasRegionSelected)
 						{
 							mouse.rotateSelectionRegionClockwise();
 							entities.rotateSelectedClockwise();
 							tiles.rotateSelectedClockwise();
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Rotated the items within the region clockwise.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
+						#ifdef DEBUG_NDITOR
+						else
+						{
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Cannot rotate items when no region were selected.");
+							debugMessage.message = tempString;
+							debugMessage.color = ERROR_COLOR;
+							hasDebugInfo = true;
+						}
+						#endif
 						break;
+					}
 					case GLFW_KEY_E:
+					{
 						if (!leftDown && hasRegionSelected)
 						{
 							mouse.rotateSelectionRegionCounterClockwise();
 							entities.rotateSelectedCounterClockwise();
 							tiles.rotateSelectedCounterClockwise();
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Rotated the items within the region counter clockwise.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
+						#ifdef DEBUG_NDITOR
+						else
+						{
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Cannot rotate items when no region were selected.");
+							debugMessage.message = tempString;
+							debugMessage.color = ERROR_COLOR;
+							hasDebugInfo = true;
+						}
+						#endif
 						break;
+					}
 					case GLFW_KEY_A: case GLFW_KEY_D:
+					{
 						if (!leftDown && hasRegionSelected)
 						{
 							tiles.flipSelectedHorizontally();
 							entities.flipSelectedHorizontally();
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Flipped items within the region horizontally.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
+						#ifdef DEBUG_NDITOR
+						else
+						{
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Cannot flip items when no region were selected.");
+							debugMessage.message = tempString;
+							debugMessage.color = ERROR_COLOR;
+							hasDebugInfo = true;
+						}
+						#endif
 						break;
+					}
 					case GLFW_KEY_W: case GLFW_KEY_S:
+					{
 						if (!leftDown && hasRegionSelected)
 						{
 							tiles.flipSelectedVertically();
 							entities.flipSelectedVertically();
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Flipped items within the region vertically.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
+						#ifdef DEBUG_NDITOR
+						else
+						{
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Cannot flip items when no region were selected.");
+							debugMessage.message = tempString;
+							debugMessage.color = ERROR_COLOR;
+							hasDebugInfo = true;
+						}
+						#endif
+						break;
+					}
 					case GLFW_KEY_R:
+					{
 						if (!leftDown && hasRegionSelected)
 						{
 							tiles.invertSelected();
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Inverted tiles within the region.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
+						#ifdef DEBUG_NDITOR
+						else
+						{
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Cannot invert tiles when no region were selected.");
+							debugMessage.message = tempString;
+							debugMessage.color = ERROR_COLOR;
+							hasDebugInfo = true;
+						}
+						#endif
 						break;
+					}
 					default:
 						break;
 				}
@@ -564,9 +957,26 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						if (!tileChanges.newTiles.empty())
 						{
 							recorder.newAction(tileChanges);
+							tileChanges.oldTiles.clear();
+							tileChanges.newTiles.clear();
+							#ifdef DEBUG_NDITOR
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Finished tile placement.");
+							debugMessage.message = tempString;
+							debugMessage.color = SUCCESS_COLOR;
+							hasDebugInfo = true;
+							#endif
 						}
-						tileChanges.oldTiles.clear();
-						tileChanges.newTiles.clear();
+						#ifdef DEBUG_NDITOR
+						else
+						{
+							char tempString[256] = "";
+							snprintf(tempString, 256, "Finished tile placement. No changes were made.");
+							debugMessage.message = tempString;
+							debugMessage.color = NEUTRAL_COLOR;
+							hasDebugInfo = true;
+						}
+						#endif
 						break;
 					}
 					default:
@@ -605,7 +1015,26 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 			{
 				case ENTITY_EDITING_MODE:
 				{
-					entities.pickupHighlightedEntity(moveEntity);
+					if (entities.pickupHighlightedEntity(moveEntity))
+					{
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Picking up highlighted entity.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
+					}
+					#ifdef DEBUG_NDITOR
+					else
+					{
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Unable to pick up entity. There was no entity around the cursor.");
+						debugMessage.message = tempString;
+						debugMessage.color = NEUTRAL_COLOR;
+						hasDebugInfo = true;
+					}
+					#endif
 					break;
 				}
 				case ENTITY_PLACEMENT_MODE:
@@ -614,17 +1043,58 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 					Modification addEntity;
 					if (num == SINGLE_ENTITY)
 					{
-						entities.addStaticEntity(mouse.getFirstEntityData(), addEntity);
+						EntityData e = mouse.getFirstEntityData();
+						entities.addStaticEntity(e, addEntity);
+						#ifdef DEBUG_NDITOR
+						char tempString[512] = "";
+						snprintf(tempString, 512, "Placed down a non-door type entity.\n"
+												  "Entity coordinate: (%i, %i)\n"
+												  "Entity type: %i\n"
+												  "Entity rotation: %i\n"
+												  "Entity mode: %i", e.entityCoordx, e.entityCoordy, e.type, e.rotation, e.mode);
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 					}
 					else if (num == PAIR_ENTITY)
 					{
-						entities.addStaticEntity(mouse.getFirstEntityData(), mouse.getSecondEntityData(), addEntity);
+						EntityData e1 = mouse.getFirstEntityData();
+						EntityData e2 = mouse.getSecondEntityData();
+						entities.addStaticEntity(e1, e2, addEntity);
+						#ifdef DEBUG_NDITOR
+						char tempString[512] = "";
+						snprintf(tempString, 512, "Placed down a door type entity.\n"
+												  "First entity coordinate: (%i, %i)\n"
+												  "First entity type: %i\n"
+												  "First entity rotation: %i\n"
+												  "First entity mode: %i\n"							
+												  "Second entity coordinate: (%i, %i)\n"
+												  "Second entity type: %i\n"
+												  "Second entity rotation: %i\n"
+												  "Second entity mode: %i",
+												  e1.entityCoordx, e1.entityCoordy, e1.type, e1.rotation, e1.mode,
+												  e2.entityCoordx, e2.entityCoordy, e2.type, e2.rotation, e2.mode);
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 					}
 
 					if (recorder.checkHasChanges(addEntity))
 					{
 						recorder.newAction(addEntity);
 					}
+					#ifdef DEBUG_NDITOR
+					else
+					{
+						char tempString[256] = "";
+						snprintf(tempString, 256, "The entity to be placed are not allowed to have duplicates. Skipping entity placement.");
+						debugMessage.message = tempString;
+						debugMessage.color = NEUTRAL_COLOR;
+						hasDebugInfo = true;
+					}
+					#endif
 					break;
 				}
 				case TILE_EDITING_MODE:
@@ -635,6 +1105,13 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						recorder.newAction(tileChanges);
 						tileChanges.oldTiles.clear();
 						tileChanges.newTiles.clear();
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Tile addition interrupted by attempting to select a region.");
+						debugMessage.message = tempString;
+						debugMessage.color = NEUTRAL_COLOR;
+						hasDebugInfo = true;
+						#endif
 					}
 
 					hasRegionSelected = false;
@@ -650,7 +1127,24 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 					if (recorder.checkHasChanges(paste))
 					{
 						recorder.newAction(paste);
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Pasted the items in the selected region at cursor location.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
 					}
+					#ifdef DEBUG_NDITOR
+					else
+					{
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Pasted the items in the selected region at cursor location, but there were no changes.");
+						debugMessage.message = tempString;
+						debugMessage.color = NEUTRAL_COLOR;
+						hasDebugInfo = true;
+					}
+					#endif
 					break;
 				}
 				default:
@@ -684,15 +1178,44 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 			{
 				case ENTITY_EDITING_MODE:
 				{
-					entities.placedownHighlightedEntity(moveEntity);
-					if (recorder.checkHasChanges(moveEntity))
+					if (entities.placedownHighlightedEntity(moveEntity))
+					{
+						#ifdef DEBUG_NDITOR
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Placed down highlighted entity.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+						#endif
+					}
+					#ifdef DEBUG_NDITOR
+					else
+					{
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Unable to move entity. There were none picked up.");
+						debugMessage.message = tempString;
+						debugMessage.color = ERROR_COLOR;
+						hasDebugInfo = true;
+					}
+					#endif
+					if (recorder.checkHasChanges(moveEntity))  //Uh... this might be buggy
 					{
 						recorder.newAction(moveEntity);
 						moveEntity.oldSingleEntity.clear();
 						moveEntity.newSingleEntity.clear();
 						moveEntity.oldPairEntity.clear();
-						moveEntity.oldPairEntity.clear();
+						moveEntity.newPairEntity.clear();
 					}
+					#ifdef DEBUG_NDITOR
+					else
+					{
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Entity moved but change was not recorded.");
+						debugMessage.message = tempString;
+						debugMessage.color = SUCCESS_COLOR;
+						hasDebugInfo = true;
+					}
+					#endif
 					break;
 				}
 				case TILE_EDITING_MODE:
@@ -701,6 +1224,13 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 					mouse.buildSelectionRegionBuffer(oldCoord, currentMouseModelCoord, true, false);
 					tiles.setSelectedRegion(oldCoord, currentMouseModelCoord);
 					entities.setSelectedRegion(oldCoord, currentMouseModelCoord, true);
+					#ifdef DEBUG_NDITOR
+					char tempString[256] = "";
+					snprintf(tempString, 256, "Selected a region.");
+					debugMessage.message = tempString;
+					debugMessage.color = SUCCESS_COLOR;
+					hasDebugInfo = true;
+					#endif
 					break;
 				}
 				default:
