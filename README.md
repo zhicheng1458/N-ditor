@@ -20,9 +20,9 @@ Everything is (mostly) the same as you would expect in the actual editor!
 
 ### Other control:
 
-- `L` key to import your level from a default file named "Untitled-1" within the level folder in this project.
+~~- `L` key to import your level from a default file named "Untitled-1" within the level folder in this project.~~ Disabled! There's now an UI for it.
 
-- `P` key to export your level to a default file named "Untitled-1" within the level folder in this project. Exporting will only track the items within the border in the editor.
+~~- `P` key to export your level to a default file named "Untitled-1" within the level folder in this project. Exporting will only track the items within the border in the editor.~~ Disabled! There's now an UI for it.
 
 - Use your mouse scroll key to zoom in and out.
 
