@@ -542,24 +542,6 @@ std::vector<EntityData> LevelParser::getIncludedSingleEntities(const EntityHandl
 		}
 	}
 
-	//exit doors are *practically* considered a single entity in the level format.... Nope that doesn't work xd
-	for (int i = 0; i < pairEntityDatas.size(); i++)
-	{
-		if (pairEntityDatas[i]->e1.entityCoordx >= 0 && pairEntityDatas[i]->e1.entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
-			pairEntityDatas[i]->e1.entityCoordy >= 0 && pairEntityDatas[i]->e1.entityCoordy < ENTITIES_MAX_Y_BOUNDARY &&
-			pairEntityDatas[i]->e2.entityCoordx >= 0 && pairEntityDatas[i]->e2.entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
-			pairEntityDatas[i]->e2.entityCoordy >= 0 && pairEntityDatas[i]->e2.entityCoordy < ENTITIES_MAX_Y_BOUNDARY)
-		{
-			EntityData e1 = pairEntityDatas[i]->e1.type < pairEntityDatas[i]->e2.type ? pairEntityDatas[i]->e1 : pairEntityDatas[i]->e2;
-			EntityData e2 = pairEntityDatas[i]->e1.type < pairEntityDatas[i]->e2.type ? pairEntityDatas[i]->e2 : pairEntityDatas[i]->e1;
-			if (e1.type == entityType::EXIT && e2.type == entityType::EXIT_SWITCH)
-			{
-				includedEntity.push_back(e1);
-				includedEntity.push_back(e2);
-			}
-		}
-	}
-
 	//Type sorting entities for faster file writing
 	std::sort(includedEntity.begin(), includedEntity.end(), [](EntityData e1, EntityData e2) {
 		return (int)(e1.type) < (int)(e2.type);
@@ -586,10 +568,7 @@ std::vector<PairEntityData> LevelParser::getIncludedPairEntities(const EntityHan
 			temp.e2 = pairEntityDatas[i]->e1.type < pairEntityDatas[i]->e2.type ? pairEntityDatas[i]->e2 : pairEntityDatas[i]->e1;
 			temp.highlight = pairEntityDatas[i]->highlight;
 
-			if (temp.e1.type != entityType::EXIT && temp.e2.type != entityType::EXIT_SWITCH)
-			{
-				includedEntity.push_back(temp);
-			}
+			includedEntity.push_back(temp);
 		}
 	}
 
@@ -843,7 +822,7 @@ bool LevelParser::writeObjectCountField(const std::vector<EntityData>& entityDat
 
 	for (int i = 0; i < countVector.size(); i++)
 	{
-		if (i == LOCKED_DOOR_SWITCH || i == TRAP_DOOR_SWITCH)
+		if (i == LOCKED_DOOR_SWITCH || i == TRAP_DOOR_SWITCH) //Count for the switch is skipped in the level format
 		{
 			fileReader.put((unsigned char)0);
 			fileReader.put((unsigned char)0);
@@ -870,6 +849,7 @@ bool LevelParser::writeEntityDataField(const std::vector<EntityData>& entityData
 {
 	std::vector<EntityData>::const_iterator singleEntityItr = entityData.begin();
 	std::vector<PairEntityData>::const_iterator pairEntityItr = pairEntityData.begin();
+	std::vector<EntityData> tempExitDoorSwitchHolder;
 	for (int t = 0; t < NUM_ENTITY_TYPE; t++)
 	{
 		if (t == LOCKED_DOOR_SWITCH || t == TRAP_DOOR_SWITCH) { continue; }
@@ -893,6 +873,33 @@ bool LevelParser::writeEntityDataField(const std::vector<EntityData>& entityData
 				fileReader.put((unsigned char)(pairEntityItr->e2.mode));
 
 				pairEntityItr++;
+			}
+		}
+		else if (t == EXIT) //Exit need to be all added first, queue the exit switch up into a temporary vector.
+		{
+			while (pairEntityItr != pairEntityData.end() && pairEntityItr->e1.type == t)
+			{
+				fileReader.put((unsigned char)(pairEntityItr->e1.type));
+				fileReader.put((unsigned char)(pairEntityItr->e1.entityCoordx));
+				fileReader.put((unsigned char)(pairEntityItr->e1.entityCoordy));
+				int doorRotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - pairEntityItr->e1.rotation) % NUM_ROTATIONS_PER_ENTITY_TYPE;
+				fileReader.put((unsigned char)doorRotation);
+				fileReader.put((unsigned char)(pairEntityItr->e1.mode));
+
+				tempExitDoorSwitchHolder.push_back(pairEntityItr->e2);
+				pairEntityItr++;
+			}
+		}
+		else if (t == EXIT_SWITCH)
+		{
+			for(int i = 0; i < tempExitDoorSwitchHolder.size(); i++)
+			{
+				fileReader.put((unsigned char)(tempExitDoorSwitchHolder[i].type));
+				fileReader.put((unsigned char)(tempExitDoorSwitchHolder[i].entityCoordx));
+				fileReader.put((unsigned char)(tempExitDoorSwitchHolder[i].entityCoordy));
+				int doorRotation = (NUM_ROTATIONS_PER_ENTITY_TYPE - tempExitDoorSwitchHolder[i].rotation) % NUM_ROTATIONS_PER_ENTITY_TYPE;
+				fileReader.put((unsigned char)doorRotation);
+				fileReader.put((unsigned char)(tempExitDoorSwitchHolder[i].mode));
 			}
 		}
 		else
