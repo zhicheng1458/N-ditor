@@ -8,6 +8,7 @@
 #include "Camera.h"
 
 #include "Palette.h"
+#include "LevelProperty.h"
 #include "TileHandler.h"
 #include "EntityHandler.h"
 #include "EditorOverlay.h"
@@ -20,7 +21,7 @@
 
 #define DEBUG_NDITOR
 
-enum editingMode
+enum EditingMode
 {
 	TILE_EDITING_MODE = 0,
 	ENTITY_EDITING_MODE = 1,
@@ -58,20 +59,33 @@ public:
 	EntityRotation getEntityRotationByKey(int key);
 	EntityMode getEntityModeByKey(int key);
 
-	const editingMode & getEditingMode();
+	const EditingMode & getEditingMode();
 	const float getGridSpacing();
+
+	void resetStates();
+
+	/* The following items need to be exposed for the GUI to perform some action */
+	float screenWidth = 1600.0f;
+	float screenHeight = 900.0f;
+	const float gridSpacing = 40.0f; //This also dictate the size of the tile
+
+	//Objects
+	Palette palette = Palette();
+	LevelParser levelParser; //Include stream, so it cannot be copy constructed
+	LevelProperty levelProperty;
+	TileHandler tiles = TileHandler(gridSpacing, palette);
+	EntityHandler entities = EntityHandler(gridSpacing, palette);
+	EditorOverlay overlay = EditorOverlay(screenWidth, screenHeight, gridSpacing); //TODO: let the overlay use palette too
+	Cursor mouse = Cursor(gridSpacing, palette);
+	ActionRecorder recorder = ActionRecorder();
 
 	//For debugging
 	Message debugMessage; //TODO: Change to a vector to allow logging multiple message at once.
 	bool hasDebugInfo = false;
-	const glm::vec4 SUCCESS_COLOR = glm::vec4(0.1f, 0.9f, 0.1f, 1.0f); //Green
-	const glm::vec4 ERROR_COLOR = glm::vec4(0.9f, 0.1f, 0.1f, 1.0f);   //Red
-	const glm::vec4 NEUTRAL_COLOR = glm::vec4(0.9f, 0.9f, 0.1f, 1.0f); //Yellow
 
 private:
-
-	float screenWidth = 1600.0f;
-	float screenHeight = 900.0f;
+	//float screenWidth = 1600.0f; //Made public
+	//float screenHeight = 900.0f; //Made public
 	glm::mat4 modelMtx; //The whole editor as a singular model
 
 	enum GridLevel
@@ -90,7 +104,7 @@ private:
 	Model * grid;
 	ShaderProgram * gridShader;
 	const float gridlineLength = 5000.0f;
-	const float gridSpacing = 40.0f; //This also dictate the size of the tile
+	//const float gridSpacing = 40.0f; //This also dictate the size of the tile. This has been made public
 	const float gridlineThickness = 1.0f;
 
 	Model * fineGrid;
@@ -112,32 +126,17 @@ private:
 	const float entityPlaceableRegionLineThickness = 6.0f;
 	const glm::vec4 entityPlaceableRegionLineColor = glm::vec4(0.0f, 0.2f, 0.2f, 1.0f);
 
-	//Palette
-	Palette palette = Palette();
-
-	//Tiles
-	TileHandler tiles = TileHandler(gridSpacing, palette);
-
-	//Entities
-	EntityHandler entities = EntityHandler(gridSpacing, palette);
-
-	//Overlay
-	EditorOverlay overlay = EditorOverlay(screenWidth, screenHeight, gridSpacing); //TODO: let the overlay use palette too
-
-	//Cursor
-	Cursor mouse = Cursor(gridSpacing, palette);
-
 	//Undo/Redo
-	ActionRecorder recorder = ActionRecorder();
 	Modification tileChanges; //To track multi tile placement
 	Modification moveEntity; //To track entity changing via dragging
-	double LKeyPressedTime = -5.0;
-	const double MAX_IMPORT_DECISION_TIME = 5.0;
-
-	LevelParser levelParser; //Include stream, so it cannot be copy constructed
+	bool warnedUserOfUnsavedChanges = false;
+	bool overrideExistingFile = false;
+	double LKeyPressedTime = 0.0;
+	double PKeyPressedTime = 0.0;
+	const double MAX_IMPORT_EXPORT_DECISION_TIME = 5.0;
 
 	//Toggle for tile-editing mode vs entity-editing mode;
-	editingMode currentEditingMode = TILE_EDITING_MODE;
+	EditingMode currentEditingMode = TILE_EDITING_MODE;
 
 	glm::ivec2 oldTileCoordinate = glm::vec2(0);
 	glm::ivec2 oldEntityCoordinate = glm::vec2(0);
@@ -156,8 +155,5 @@ private:
 	bool keyStates[GLFW_KEY_LAST + 1];
 
 	void init();
-	void resetStates();
 	glm::vec2 calculateMouseModelCoord(GLFWwindow* window, double mouseX, double mouseY);
-	void calculateOldObjectCoord();
-	void calculateCurrentObjectCoord();
 };

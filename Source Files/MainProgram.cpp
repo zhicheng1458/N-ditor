@@ -274,6 +274,7 @@ void MainProgram::draw()
 	screen->draw(glm::mat4(1), glm::mat4(1), RenderProgram->getProgramID());
 	glBindTexture(GL_TEXTURE_2D, 0);
 
+	//GUI
 	gui->draw();
 
 	if ((error = glGetError()) != GL_NO_ERROR)

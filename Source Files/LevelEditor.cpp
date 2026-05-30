@@ -205,7 +205,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 		char tempString[256] = "";
 		snprintf(tempString, 256, "Editor cannot perform keyboard action while left click is held down.");
 		debugMessage.message = tempString;
-		debugMessage.color = ERROR_COLOR;
+		debugMessage.color = CommonMessageColor::ERROR_COLOR;
 		hasDebugInfo = true;
 		#endif
 		//Keyboard interaction may not occur while left click is held down.
@@ -223,7 +223,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			char tempString[256] = "";
 			snprintf(tempString, 256, "Resetting editor states.");
 			debugMessage.message = tempString;
-			debugMessage.color = SUCCESS_COLOR;
+			debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 			hasDebugInfo = true;
 			#endif
 			return;
@@ -237,14 +237,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 			char tempString[256] = "";
 			snprintf(tempString, 256, "Toggling fine grid drawing.");
 			debugMessage.message = tempString;
-			debugMessage.color = SUCCESS_COLOR;
+			debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 			hasDebugInfo = true;
 			#endif
 			return;
 		}
 
 		//Temporary level importing and exporting
-		if (key == GLFW_KEY_L)
+		/* if (key == GLFW_KEY_L)
 		{
 			if (!leftDown)
 			{
@@ -254,15 +254,14 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 					double timeSinceLLastPressed = currentTime - LKeyPressedTime;
 					LKeyPressedTime = currentTime;
 
-					if (recorder.changedSinceLastChecked() || timeSinceLLastPressed > MAX_IMPORT_DECISION_TIME)
+					if (!warnedUserOfUnsavedChanges || timeSinceLLastPressed > MAX_IMPORT_EXPORT_DECISION_TIME)
 					{
 						char tempString[256] = "";
 						snprintf(tempString, 256, "There are unsaved changed! Press the 'L' key again in the next 5 seconds to confirm importing level with unsaved changes.");
 						debugMessage.message = tempString;
-						debugMessage.color = NEUTRAL_COLOR;
+						debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 						hasDebugInfo = true;
-
-						recorder.flagCurrentStep();
+						warnedUserOfUnsavedChanges = true;
 					}
 					else
 					{
@@ -270,48 +269,84 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						//(Which it *isn't* a bad thing because the level is saved already but....)
 						this->resetStates();
 						recorder.reset(); //Recorder will stop remembering all actions when loading a new level.
-						levelParser.importLevel("Untitled-1", tiles, entities);
-						#ifdef DEBUG_NDITOR
+						levelParser.importLevel("Untitled-1", tiles, entities, levelProperty);
+						warnedUserOfUnsavedChanges = false;
+
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Discarded unsaved changes and imported level from default level named \"Untitled-1\".");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
-						#endif
+
 					}
 				}
 				else
 				{
 					this->resetStates();
 					recorder.reset(); //Recorder will stop remembering all actions when loading a new level.
-					levelParser.importLevel("Untitled-1", tiles, entities);
-					#ifdef DEBUG_NDITOR
+					levelParser.importLevel("Untitled-1", tiles, entities, levelProperty);
+					warnedUserOfUnsavedChanges = false;
+
 					char tempString[256] = "";
 					snprintf(tempString, 256, "Imported level from default level named \"Untitled-1\".");
 					debugMessage.message = tempString;
-					debugMessage.color = SUCCESS_COLOR;
+					debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 					hasDebugInfo = true;
-					#endif
+
 				}
 			}
 			return;
-		}
-		if (key == GLFW_KEY_P)
+		} */
+		/*if (key == GLFW_KEY_P)
 		{
 			if (!leftDown)
 			{
-				this->resetStates();
-				levelParser.exportLevel("Untitled-1", tiles, entities);
-				#ifdef DEBUG_NDITOR
-				char tempString[256] = "";
-				snprintf(tempString, 256, "Exported level to default level named \"Untitled-1\".");
-				debugMessage.message = tempString;
-				debugMessage.color = SUCCESS_COLOR;
-				hasDebugInfo = true;
-				#endif
+				if(levelParser.checkImportExportNameExist("Untitled-1"))
+				{
+					double currentTime = glfwGetTime();
+					double timeSincePLastPressed = currentTime - PKeyPressedTime;
+					PKeyPressedTime = currentTime;
+
+					if (!overrideExistingFile || timeSincePLastPressed > MAX_IMPORT_EXPORT_DECISION_TIME)
+					{
+						char tempString[256] = "";
+						snprintf(tempString, 256, "You are about to override an existing file named \"%s\"! "
+												  "Press the 'P' key again in the next 5 seconds to confirm overriding.", "Untitled-1");
+						debugMessage.message = tempString;
+						debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
+						hasDebugInfo = true;
+						overrideExistingFile = true;
+					}
+					else
+					{
+						this->resetStates();
+						levelParser.exportLevel("Untitled-1", tiles, entities, levelProperty);
+						recorder.flagCurrentStepSaved(); //Lets importing know work has been saved
+						overrideExistingFile = false;
+
+						char tempString[256] = "";
+						snprintf(tempString, 256, "Exported level to the named \"Untitled-1\", overriding its previous content.");
+						debugMessage.message = tempString;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
+						hasDebugInfo = true;
+					}
+				}
+				else
+				{
+					this->resetStates();
+					levelParser.exportLevel("Untitled-1", tiles, entities, levelProperty);
+					recorder.flagCurrentStepSaved(); //Lets importing know work has been saved
+					overrideExistingFile = false;
+
+					char tempString[256] = "";
+					snprintf(tempString, 256, "Exported level to default level named \"Untitled-1\".");
+					debugMessage.message = tempString;
+					debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
+					hasDebugInfo = true;
+				}
 			}
 			return;
-		}
+		}*/
 
 		//Undo and redo
 		if (mods == GLFW_MOD_CONTROL && key == GLFW_KEY_Z)
@@ -325,7 +360,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				char tempString[256] = "";
 				snprintf(tempString, 256, "Undid an action.");
 				debugMessage.message = tempString;
-				debugMessage.color = SUCCESS_COLOR;
+				debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 				hasDebugInfo = true;
 				#endif
 			}
@@ -335,7 +370,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				char tempString[256] = "";
 				snprintf(tempString, 256, "There are no more action to undo, or the undo memory limit has been reached.");
 				debugMessage.message = tempString;
-				debugMessage.color = NEUTRAL_COLOR;
+				debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 				hasDebugInfo = true;
 			}
 			#endif
@@ -353,7 +388,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				char tempString[256] = "";
 				snprintf(tempString, 256, "Redid an action.");
 				debugMessage.message = tempString;
-				debugMessage.color = SUCCESS_COLOR;
+				debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 				hasDebugInfo = true;
 				#endif
 			}
@@ -363,7 +398,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 				char tempString[256] = "";
 				snprintf(tempString, 256, "There are no more action to redo.");
 				debugMessage.message = tempString;
-				debugMessage.color = NEUTRAL_COLOR;
+				debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 				hasDebugInfo = true;
 			}
 			#endif
@@ -393,7 +428,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Switching to entity placement mode.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -409,7 +444,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Deleted an entity near the mouse cursor.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -419,7 +454,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Attempted to delete an entity, but there was none close enough to the mouse.");
 							debugMessage.message = tempString;
-							debugMessage.color = NEUTRAL_COLOR;
+							debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 							hasDebugInfo = true;
 						}
 						#endif
@@ -437,7 +472,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Changed the rotation of the highlighted entity to: %i.", currentEntityRotation);
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -447,7 +482,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Changed the current entity rotation to: %i.", currentEntityRotation);
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -464,7 +499,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Changed the mode of the highlighted entity to: %i.", currentEntityMode);
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -474,7 +509,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Changed the current entity mode to: %i.", currentEntityMode);
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -493,7 +528,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Switching to entity placement mode.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -507,7 +542,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Switching to tile placement mode.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -539,7 +574,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Switch to tile type: %i.", currentTileType);
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -558,7 +593,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 								char tempString[256] = "";
 								snprintf(tempString, 256, "Filled the selected region with full tile.");
 								debugMessage.message = tempString;
-								debugMessage.color = SUCCESS_COLOR;
+								debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 								hasDebugInfo = true;
 								#endif
 							}
@@ -568,7 +603,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 								char tempString[256] = "";
 								snprintf(tempString, 256, "Filled the selected region with full tile, but no changes was made.");
 								debugMessage.message = tempString;
-								debugMessage.color = NEUTRAL_COLOR;
+								debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 								hasDebugInfo = true;
 							}
 							#endif
@@ -581,7 +616,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Adding full tile(s) at the cursor location.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -602,7 +637,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 								char tempString[256] = "";
 								snprintf(tempString, 256, "Deleted the tiles in the selected region.");
 								debugMessage.message = tempString;
-								debugMessage.color = SUCCESS_COLOR;
+								debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 								hasDebugInfo = true;
 								#endif
 							}
@@ -612,7 +647,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 								char tempString[256] = "";
 								snprintf(tempString, 256, "Deleted the tiles in the selected region, but no changes were made.");
 								debugMessage.message = tempString;
-								debugMessage.color = NEUTRAL_COLOR;
+								debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 								hasDebugInfo = true;
 							}
 							#endif
@@ -625,7 +660,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Deleting tile(s) at the cursor location.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -643,7 +678,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 													  "Tile rotation = %i\n"
 													  "Tile type = %i", currentTileRotation, currentTileType);
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -666,7 +701,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Copied all items within the selected region. Switching to region editing mode.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -690,7 +725,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Cut all items within the selected region. Switching to region editing mode.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -714,7 +749,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Switching to entity placement mode.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -728,7 +763,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Resetting selected region.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -750,7 +785,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Switching to entity editing mode.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -770,7 +805,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Switching to tile editing mode.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -783,7 +818,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Setting entity rotation to: %i", currentEntityRotation);
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -796,7 +831,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Setting entity mode to: %i", currentEntityMode);
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -823,7 +858,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Deselected the items that were copied. Switching to tile editing mode.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 						break;
@@ -839,7 +874,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Rotated the items within the region clockwise.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -849,7 +884,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Cannot rotate items when no region were selected.");
 							debugMessage.message = tempString;
-							debugMessage.color = ERROR_COLOR;
+							debugMessage.color = CommonMessageColor::ERROR_COLOR;
 							hasDebugInfo = true;
 						}
 						#endif
@@ -866,7 +901,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Rotated the items within the region counter clockwise.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -876,7 +911,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Cannot rotate items when no region were selected.");
 							debugMessage.message = tempString;
-							debugMessage.color = ERROR_COLOR;
+							debugMessage.color = CommonMessageColor::ERROR_COLOR;
 							hasDebugInfo = true;
 						}
 						#endif
@@ -892,7 +927,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Flipped items within the region horizontally.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -902,7 +937,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Cannot flip items when no region were selected.");
 							debugMessage.message = tempString;
-							debugMessage.color = ERROR_COLOR;
+							debugMessage.color = CommonMessageColor::ERROR_COLOR;
 							hasDebugInfo = true;
 						}
 						#endif
@@ -918,7 +953,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Flipped items within the region vertically.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -928,7 +963,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Cannot flip items when no region were selected.");
 							debugMessage.message = tempString;
-							debugMessage.color = ERROR_COLOR;
+							debugMessage.color = CommonMessageColor::ERROR_COLOR;
 							hasDebugInfo = true;
 						}
 						#endif
@@ -943,7 +978,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Inverted tiles within the region.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -953,7 +988,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Cannot invert tiles when no region were selected.");
 							debugMessage.message = tempString;
-							debugMessage.color = ERROR_COLOR;
+							debugMessage.color = CommonMessageColor::ERROR_COLOR;
 							hasDebugInfo = true;
 						}
 						#endif
@@ -992,7 +1027,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Finished tile placement.");
 							debugMessage.message = tempString;
-							debugMessage.color = SUCCESS_COLOR;
+							debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 							hasDebugInfo = true;
 							#endif
 						}
@@ -1002,7 +1037,7 @@ void LevelEditor::keyboard(GLFWwindow * window, int key, int scancode, int actio
 							char tempString[256] = "";
 							snprintf(tempString, 256, "Finished tile placement. No changes were made.");
 							debugMessage.message = tempString;
-							debugMessage.color = NEUTRAL_COLOR;
+							debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 							hasDebugInfo = true;
 						}
 						#endif
@@ -1050,7 +1085,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Picking up highlighted entity.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 					}
@@ -1060,7 +1095,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Unable to pick up entity. There was no entity around the cursor.");
 						debugMessage.message = tempString;
-						debugMessage.color = NEUTRAL_COLOR;
+						debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 						hasDebugInfo = true;
 					}
 					#endif
@@ -1082,7 +1117,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 												  "Entity rotation: %i\n"
 												  "Entity mode: %i", e.entityCoordx, e.entityCoordy, e.type, e.rotation, e.mode);
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 					}
@@ -1105,7 +1140,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 												  e1.entityCoordx, e1.entityCoordy, e1.type, e1.rotation, e1.mode,
 												  e2.entityCoordx, e2.entityCoordy, e2.type, e2.rotation, e2.mode);
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 					}
@@ -1120,7 +1155,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "The entity to be placed are not allowed to have duplicates. Skipping entity placement.");
 						debugMessage.message = tempString;
-						debugMessage.color = NEUTRAL_COLOR;
+						debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 						hasDebugInfo = true;
 					}
 					#endif
@@ -1138,7 +1173,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Tile addition interrupted by attempting to select a region.");
 						debugMessage.message = tempString;
-						debugMessage.color = NEUTRAL_COLOR;
+						debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 						hasDebugInfo = true;
 						#endif
 					}
@@ -1160,7 +1195,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Pasted the items in the selected region at cursor location.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 					}
@@ -1170,7 +1205,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Pasted the items in the selected region at cursor location, but there were no changes.");
 						debugMessage.message = tempString;
-						debugMessage.color = NEUTRAL_COLOR;
+						debugMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 						hasDebugInfo = true;
 					}
 					#endif
@@ -1213,7 +1248,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Placed down highlighted entity.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 						#endif
 					}
@@ -1223,7 +1258,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Unable to move entity. There were none picked up.");
 						debugMessage.message = tempString;
-						debugMessage.color = ERROR_COLOR;
+						debugMessage.color = CommonMessageColor::ERROR_COLOR;
 						hasDebugInfo = true;
 					}
 					#endif
@@ -1241,7 +1276,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 						char tempString[256] = "";
 						snprintf(tempString, 256, "Entity moved but change was not recorded.");
 						debugMessage.message = tempString;
-						debugMessage.color = SUCCESS_COLOR;
+						debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 						hasDebugInfo = true;
 					}
 					#endif
@@ -1257,7 +1292,7 @@ void LevelEditor::mouseButton(GLFWwindow * window, int button, int action, int m
 					char tempString[256] = "";
 					snprintf(tempString, 256, "Selected a region.");
 					debugMessage.message = tempString;
-					debugMessage.color = SUCCESS_COLOR;
+					debugMessage.color = CommonMessageColor::SUCCESS_COLOR;
 					hasDebugInfo = true;
 					#endif
 					break;
@@ -1526,7 +1561,7 @@ EntityMode LevelEditor::getEntityModeByKey(int key)
 /** Return true if in entity editing mode.
  *  Return false if in tile eidting mode.
  */
-const editingMode & LevelEditor::getEditingMode()
+const EditingMode & LevelEditor::getEditingMode()
 {
 	return currentEditingMode;
 }
@@ -1544,16 +1579,6 @@ glm::vec2 LevelEditor::calculateMouseModelCoord(GLFWwindow* window, double mouse
 		glm::vec2((float)mouseX, (float)mouseY),
 		(float)display_w, (float)display_h,
 		viewpoint->getViewMtx(), viewpoint->getProjectionMtx(), levelRegionModelMtx);
-}
-
-void LevelEditor::calculateOldObjectCoord()
-{
-
-}
-
-void LevelEditor::calculateCurrentObjectCoord()
-{
-	
 }
 
 void LevelEditor::resetStates()

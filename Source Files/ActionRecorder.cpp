@@ -14,6 +14,7 @@ bool ActionRecorder::newAction(const Modification& changes)
 		recorder.pop_front();
 	}
 	currentStep = recorder.end();
+	savedStep = recorder.begin(); //Any new action performed will reset saved step back to the beginning since some steps may be wiped with undo earlier
 	return true;
 }
 
@@ -52,23 +53,33 @@ bool ActionRecorder::redo(Modification& changes)
 
 bool ActionRecorder::hasUnsavedWork()
 {
-	return(currentStep != recorder.begin());
+	return(currentStep != savedStep);
 }
 
+/*
 void ActionRecorder::flagCurrentStep()
 {
 	flaggedStep = currentStep;
 }
+*/
 
+void ActionRecorder::flagCurrentStepSaved()
+{
+	savedStep = currentStep;
+}
+
+/*
 bool ActionRecorder::changedSinceLastChecked()
 {
 	return (flaggedStep != currentStep);
 }
+*/
 
 bool ActionRecorder::reset()
 {
 	recorder.clear();
 	currentStep = recorder.end();
-	flaggedStep = currentStep;
+	savedStep = recorder.begin();
+	//flaggedStep = currentStep;
 	return true;
 }

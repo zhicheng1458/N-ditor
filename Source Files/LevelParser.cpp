@@ -3,6 +3,8 @@
 LevelParser::LevelParser()
 {
 	fileReader.setf(std::ios::hex);
+
+	errorMessage.message = "This is a test message";
 }
 
 LevelParser::~LevelParser()
@@ -13,30 +15,33 @@ LevelParser::~LevelParser()
 	}
 }
 
-void LevelParser::importLevel(std::string levelName, TileHandler& tileHandler, EntityHandler& entityHandler)
+bool LevelParser::importLevel(std::string levelName, TileHandler& tileHandler, EntityHandler& entityHandler, LevelProperty& levelProperty)
 {
 	if (!openInputFile(levelName))
 	{
-		return;
+		return false;
 	}
 
 	if (!verifyFileSize())
 	{
-		return;
+		return false;
 	}
 
+	loadLevelName(levelProperty);
 	loadTiles(tileHandler);
 	loadEntities(entityHandler);
 
-	closeFile();
+	return closeFile();
 }
 
-void LevelParser::exportLevel(std::string levelName, const TileHandler& tileHandler, const EntityHandler& entityHandler)
+bool LevelParser::exportLevel(std::string levelName, const TileHandler& tileHandler, const EntityHandler& entityHandler, const LevelProperty& levelProperty)
 {
 	if (levelName.length() > MAX_LEVEL_NAME_LENGTH)
 	{
 		printf("Level name cannot be longer than 128 characters.");
-		return;
+		errorMessage.message = "Level name cannot be longer than 128 characters.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
+		return false;
 	}
 
 	/* Psudo code
@@ -57,8 +62,10 @@ void LevelParser::exportLevel(std::string levelName, const TileHandler& tileHand
 	{
 		if (includedSingleEntity[i].type == entityType::NONE)
 		{
-			printf("Invisible entities detected, unable to save level.");
-			return;
+			printf("Invisible entities detected, unable to export level.");
+			errorMessage.message = "Invisible entities detected, unable to export level.";
+			errorMessage.color = CommonMessageColor::ERROR_COLOR;
+			return false;
 		}
 	}
 
@@ -66,6 +73,7 @@ void LevelParser::exportLevel(std::string levelName, const TileHandler& tileHand
 								(long int)includedSingleEntity.size() * NUM_BYTES_PER_ENTITY +
 								(long int)includedPairEntity.size() * 2 * NUM_BYTES_PER_ENTITY;
 
+	//TODO: The name in the first parameter has priority over what is in the LevelProperty for now.
 	std::string lvlName = levelName;
 	if (levelName.length() == 0)
 	{
@@ -74,7 +82,7 @@ void LevelParser::exportLevel(std::string levelName, const TileHandler& tileHand
 
 	if (!openOutputFile(lvlName))
 	{
-		return;
+		return false;
 	}
 
 	writeMagicNumberField();											//That's what it is called in the file format, idk what to say. 4 Bytes
@@ -88,10 +96,29 @@ void LevelParser::exportLevel(std::string levelName, const TileHandler& tileHand
 	fileReader.flush();
 	if (!verifyFileSize())
 	{
-		printf("Level saving may be corrupted.");
+		printf("Level exporting may be corrupted.");
+		errorMessage.message = "Level exporting may be corrupted.";
+		errorMessage.color = CommonMessageColor::NEUTRAL_COLOR;
 	}
 
-	closeFile();
+	return closeFile();
+}
+
+/* Return true if the file exist. Return false if the file does not exist.*/
+bool LevelParser::checkImportExportNameExist(std::string levelName)
+{
+	std::string filePath = DIRECTORY_PATH + levelName;
+
+	if (std::filesystem::exists(filePath) && std::filesystem::is_regular_file(filePath))
+	{
+		return true;
+	}
+	return false;
+}
+
+Message LevelParser::queryError()
+{
+	return errorMessage;
 }
 
 bool LevelParser::openInputFile(std::string levelName)
@@ -101,15 +128,18 @@ bool LevelParser::openInputFile(std::string levelName)
 	if (fileReader.is_open())
 	{
 		printf("Level file is currently opened by another file reader.\n");
+		errorMessage.message = "Level file is currently opened by another file reader.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
 	string filePath = DIRECTORY_PATH + levelName;
-	struct stat buffer;
-	bool exist = (stat(filePath.c_str(), &buffer) == 0);
-	if (!exist)
+
+	if(!std::filesystem::exists(filePath) || !std::filesystem::is_regular_file(filePath))
 	{
 		printf("Level name not found.\n");
+		errorMessage.message = "Level name not found.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -117,6 +147,8 @@ bool LevelParser::openInputFile(std::string levelName)
 	if (fileReader.fail())
 	{
 		printf("Unable to open level file.\n");
+		errorMessage.message = "Unable to open level file.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -130,6 +162,8 @@ bool LevelParser::openOutputFile(std::string levelName)
 	if (fileReader.is_open())
 	{
 		printf("Level file is currently opened by another file reader.\n");
+		errorMessage.message = "Level file is currently opened by another file reader.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -138,7 +172,9 @@ bool LevelParser::openOutputFile(std::string levelName)
 	fileReader.open(filePath.c_str(), ifstream::out | ifstream::binary | ifstream::trunc);
 	if (fileReader.fail())
 	{
-		printf("Unable to open level file.\n");
+		printf("Unable to open/create level file.\n");
+		errorMessage.message = "Unable to open/create level file.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -151,6 +187,8 @@ bool LevelParser::closeFile()
 	if (fileReader.fail())
 	{
 		std::printf("Unable to close the current level file.\n");
+		errorMessage.message = "Unable to close the current level file.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -164,6 +202,8 @@ bool LevelParser::verifyFileSize()
 	if (!fileReader.is_open())
 	{
 		std::printf("No level file opened.\n");
+		errorMessage.message = "No level file opened.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -173,6 +213,8 @@ bool LevelParser::verifyFileSize()
 	if (fileSize < MINIMUM_LEVEL_FILE_SIZE)
 	{
 		std::printf("Invalid level file: File is not big enough to be a valid level file.\n");
+		errorMessage.message = "Invalid level file : File is not big enough to be a valid level file.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -187,6 +229,8 @@ bool LevelParser::verifyFileSize()
 	if (fileSize < total)
 	{
 		std::printf("Invalid level file: File size is less than the declared size in bytes by the level.");
+		errorMessage.message = "Invalid level file: File size is less than the declared size in bytes by the level.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -214,6 +258,8 @@ bool LevelParser::verifyFileSize()
 	if (MINIMUM_LEVEL_FILE_SIZE + entityDataFieldLength > fileSize)
 	{
 		std::printf("Invalid level file: Not enough entity datas supplied.\n");
+		errorMessage.message = "Invalid level file: Not enough entity datas supplied.";
+		errorMessage.color = CommonMessageColor::ERROR_COLOR;
 		return false;
 	}
 
@@ -223,6 +269,24 @@ bool LevelParser::verifyFileSize()
 }
 
 /////////////////////////////////////////////////////////////////////////////
+
+bool LevelParser::loadLevelName(LevelProperty& levelProperty)
+{
+	fileReader.clear();
+	fileReader.seekg(LEVEL_NAME_INDEX);
+	std::string name = "";
+	for (int i = 0; i < MAX_LEVEL_NAME_LENGTH; i++)
+	{
+		int c = fileReader.get();
+		if (c == 0) { break; } //Found null terminating character
+		if (c < 32 || c > 127) { c = 32; } //Quick check to ensure the value obtained is a printable character. Replace with space if not.
+		char letter = (char)c;
+		name += letter;
+	}
+
+	levelProperty.levelName = name;
+	return true;
+}
 
 bool LevelParser::loadTiles(TileHandler& tileHandler)
 {
@@ -478,7 +542,7 @@ std::vector<EntityData> LevelParser::getIncludedSingleEntities(const EntityHandl
 		}
 	}
 
-	//exit doors are *practically* considered a single entity in the level format....
+	//exit doors are *practically* considered a single entity in the level format.... Nope that doesn't work xd
 	for (int i = 0; i < pairEntityDatas.size(); i++)
 	{
 		if (pairEntityDatas[i]->e1.entityCoordx >= 0 && pairEntityDatas[i]->e1.entityCoordx < ENTITIES_MAX_X_BOUNDARY &&
@@ -754,6 +818,8 @@ bool LevelParser::writeObjectCountField(const std::vector<EntityData>& entityDat
 		else
 		{
 			printf("Unknown entity type detected, cannot save level.");
+			errorMessage.message = "Unknown entity type detected, cannot save level.";
+			errorMessage.color = CommonMessageColor::ERROR_COLOR;
 			return false;
 		}
 	}
@@ -769,6 +835,8 @@ bool LevelParser::writeObjectCountField(const std::vector<EntityData>& entityDat
 		else
 		{
 			printf("Unknown entity type detected, cannot save level.");
+			errorMessage.message = "Unknown entity type detected, cannot save level.";
+			errorMessage.color = CommonMessageColor::ERROR_COLOR;
 			return false;
 		}
 	}
